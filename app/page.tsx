@@ -1,13 +1,44 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { CalendarDays, Wine, Briefcase, ChevronRight } from "lucide-react";
-import { collection, addDoc } from "firebase/firestore";
+import { useState, useEffect, FormEvent } from "react";
+import { CalendarDays, Wine, Briefcase, ChevronRight, Loader2 } from "lucide-react";
+import { collection, addDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
 
 export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
+  const [isLoadingContent, setIsLoadingContent] = useState(true);
+
+  const [content, setContent] = useState({
+    heroTitle: "Crafting Unforgettable Moments",
+    heroSubtitle: "Exclusive event coordination for corporate gatherings, elegant weddings, and private celebrations.",
+    service1Desc: "Professional and seamless coordination for galas, product launches, and company retreats.",
+    service2Desc: "Bespoke wedding planning ensuring every detail of your special day is perfectly executed.",
+    service3Desc: "Exclusive and intimate celebrations tailored to your unique style and vision.",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?q=80&w=2069&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=2070&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1530103862676-de8892bf309c?q=80&w=2070&auto=format&fit=crop"
+    ]
+  });
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      try {
+        const docRef = doc(db, "content", "home");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setContent(docSnap.data() as any);
+        }
+      } catch (error) {
+        console.error("Error fetching content:", error);
+      } finally {
+        setIsLoadingContent(false);
+      }
+    };
+    fetchContent();
+  }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -35,6 +66,14 @@ export default function Home() {
     }
   };
 
+  if (isLoadingContent) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-stone-300" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-stone-50 font-sans text-stone-900 selection:bg-stone-200">
       {/* Hero Section */}
@@ -45,10 +84,10 @@ export default function Home() {
         
         <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-4xl">
           <h1 className="text-5xl md:text-7xl font-serif tracking-tight mb-6">
-            Crafting Unforgettable Moments
+            {content.heroTitle}
           </h1>
           <p className="text-lg md:text-2xl text-stone-200 mb-10 font-light max-w-2xl">
-            Exclusive event coordination for corporate gatherings, elegant weddings, and private celebrations.
+            {content.heroSubtitle}
           </p>
           <a href="#contact" className="inline-flex items-center gap-2 bg-stone-50 text-stone-950 px-8 py-4 text-lg font-medium hover:bg-stone-200 transition-colors">
             Book a Consultation <ChevronRight className="w-5 h-5" />
@@ -70,7 +109,7 @@ export default function Home() {
             </div>
             <h3 className="text-2xl font-medium mb-3">Corporate Events</h3>
             <p className="text-stone-600 leading-relaxed">
-              Professional and seamless coordination for galas, product launches, and company retreats.
+              {content.service1Desc}
             </p>
           </div>
           {/* Service 2 */}
@@ -80,7 +119,7 @@ export default function Home() {
             </div>
             <h3 className="text-2xl font-medium mb-3">Weddings</h3>
             <p className="text-stone-600 leading-relaxed">
-              Bespoke wedding planning ensuring every detail of your special day is perfectly executed.
+              {content.service2Desc}
             </p>
           </div>
           {/* Service 3 */}
@@ -90,7 +129,7 @@ export default function Home() {
             </div>
             <h3 className="text-2xl font-medium mb-3">Private Parties</h3>
             <p className="text-stone-600 leading-relaxed">
-              Exclusive and intimate celebrations tailored to your unique style and vision.
+              {content.service3Desc}
             </p>
           </div>
         </div>
@@ -104,15 +143,21 @@ export default function Home() {
             <div className="w-12 h-1 bg-stone-900 mx-auto"></div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="aspect-[4/5] bg-stone-300 relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center hover:scale-105 transition-transform duration-700"></div>
-            </div>
-            <div className="aspect-[4/5] bg-stone-300 relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center hover:scale-105 transition-transform duration-700"></div>
-            </div>
-            <div className="aspect-[4/5] bg-stone-300 relative overflow-hidden sm:hidden lg:block">
-              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1530103862676-de8892bf309c?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center hover:scale-105 transition-transform duration-700"></div>
-            </div>
+            {content.galleryImages[0] && (
+              <div className="aspect-[4/5] bg-stone-300 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style={{ backgroundImage: `url('${content.galleryImages[0]}')` }}></div>
+              </div>
+            )}
+            {content.galleryImages[1] && (
+              <div className="aspect-[4/5] bg-stone-300 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style={{ backgroundImage: `url('${content.galleryImages[1]}')` }}></div>
+              </div>
+            )}
+            {content.galleryImages[2] && (
+              <div className="aspect-[4/5] bg-stone-300 relative overflow-hidden group sm:hidden lg:block">
+                <div className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style={{ backgroundImage: `url('${content.galleryImages[2]}')` }}></div>
+              </div>
+            )}
           </div>
         </div>
       </section>
