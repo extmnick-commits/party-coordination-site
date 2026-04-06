@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { signOut } from "firebase/auth";
-import { db, storage, auth } from "./app/firebase";
+import { db, storage, auth } from "../firebase";
 import { useRouter } from "next/navigation";
 import { Save, Upload, Image as ImageIcon, Type, LogOut, Trash2, Loader2, Check } from "lucide-react";
 
