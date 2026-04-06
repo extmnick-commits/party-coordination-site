@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
 import Image from "next/image";
 
@@ -21,21 +21,23 @@ export default function HomePage() {
 
   useEffect(() => {
     const fetchContent = async () => {
-      try {
-        const docRef = doc(db, "content", "home");
-        const docSnap = await getDoc(docRef);
-
+      const docRef = doc(db, "content", "home");
+      
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
           setContent(docSnap.data() as Content);
+          setError(null);
         } else {
           setError("No content found for the homepage.");
         }
-      } catch (err: any) {
+        setLoading(false);
+      }, (err: any) => {
         console.error("Error fetching homepage content:", err);
         setError("Failed to load homepage content. Please try again later.");
-      } finally {
         setLoading(false);
-      }
+      });
+
+      return () => unsubscribe();
     };
     fetchContent();
   }, []);
