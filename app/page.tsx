@@ -1,6 +1,40 @@
+"use client";
+
+import { useState, FormEvent } from "react";
 import { CalendarDays, Wine, Briefcase, ChevronRight } from "lucide-react";
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "./firebase";
 
 export default function Home() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState("");
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitMessage("");
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      name: formData.get("name"),
+      email: formData.get("email"),
+      date: formData.get("date"),
+      details: formData.get("details"),
+      createdAt: new Date(),
+    };
+
+    try {
+      await addDoc(collection(db, "inquiries"), data);
+      setSubmitMessage("Thank you! Your inquiry has been submitted.");
+      e.currentTarget.reset();
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      setSubmitMessage("An error occurred while submitting. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-stone-50 font-sans text-stone-900 selection:bg-stone-200">
       {/* Hero Section */}
@@ -89,28 +123,31 @@ export default function Home() {
           <h2 className="text-4xl font-serif mb-4">Inquire About Your Event</h2>
           <p className="text-stone-600">Fill out the form below and our team will get back to you to schedule a consultation.</p>
         </div>
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-stone-700 mb-2">Full Name</label>
-              <input type="text" id="name" className="w-full border border-stone-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-stone-900 bg-transparent" required />
+              <input type="text" id="name" name="name" className="w-full border border-stone-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-stone-900 bg-transparent" required />
             </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-stone-700 mb-2">Email Address</label>
-              <input type="email" id="email" className="w-full border border-stone-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-stone-900 bg-transparent" required />
+              <input type="email" id="email" name="email" className="w-full border border-stone-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-stone-900 bg-transparent" required />
             </div>
           </div>
           <div>
             <label htmlFor="date" className="block text-sm font-medium text-stone-700 mb-2">Estimated Event Date</label>
-            <input type="date" id="date" className="w-full border border-stone-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-stone-900 bg-transparent" />
+            <input type="date" id="date" name="date" className="w-full border border-stone-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-stone-900 bg-transparent" />
           </div>
           <div>
             <label htmlFor="details" className="block text-sm font-medium text-stone-700 mb-2">Event Details</label>
-            <textarea id="details" rows={5} className="w-full border border-stone-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-stone-900 bg-transparent" placeholder="Tell us about your vision..." required></textarea>
+            <textarea id="details" name="details" rows={5} className="w-full border border-stone-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-stone-900 bg-transparent" placeholder="Tell us about your vision..." required></textarea>
           </div>
-          <button type="submit" className="w-full bg-stone-900 text-stone-50 font-medium py-4 hover:bg-stone-800 transition-colors">
-            Submit Inquiry
+          <button type="submit" disabled={isSubmitting} className="w-full bg-stone-900 text-stone-50 font-medium py-4 hover:bg-stone-800 transition-colors disabled:opacity-50">
+            {isSubmitting ? "Submitting..." : "Submit Inquiry"}
           </button>
+          {submitMessage && (
+            <p className="text-center text-sm font-medium mt-4 text-stone-800">{submitMessage}</p>
+          )}
         </form>
       </section>
 
