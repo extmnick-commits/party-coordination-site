@@ -7,8 +7,43 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { signOut } from 'firebase/auth';
 import { auth, db, storage } from '../firebase';
 import Image from 'next/image';
-import { Save, ImagePlus, Loader2, LogOut, Trash2, LayoutDashboard, Monitor, Smartphone, Briefcase, CalendarDays, Wine, ChevronRight, UploadCloud, Plus, ArrowUp, ArrowDown } from 'lucide-react';
+import { Save, ImagePlus, Loader2, LogOut, Trash2, LayoutDashboard, Monitor, Smartphone, Briefcase, CalendarDays, Wine, ChevronRight, UploadCloud, Plus, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Rnd } from 'react-rnd';
+
+const compressImage = async (file: File): Promise<File> => {
+  if (!file.type.startsWith('image/')) return file;
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1080;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height && width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        } else if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => resolve(blob ? new File([blob], file.name, { type: 'image/jpeg' }) : file), 'image/jpeg', 0.85);
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+};
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -32,6 +67,15 @@ export default function AdminDashboard() {
     facebookUrl: '',
     tiktokUrl: '',
   });
+
+  const getSafeHeight = (val: any, fallback: number) => {
+    if (!val) return fallback;
+    const parsed = parseFloat(val.toString());
+    return isNaN(parsed) ? fallback : parsed;
+  };
+
+  const heroButtonHeight = getSafeHeight(layouts.heroButton?.height, 60);
+  const socialIconsTop = (layouts.heroButton?.y ?? 380) + heroButtonHeight + 40;
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -77,14 +121,7 @@ export default function AdminDashboard() {
     }));
   };
 
-  const getSafeKey = (url: string) => {
-    let hash = 0;
-    for (let i = 0; i < url.length; i++) {
-      hash = (hash << 5) - hash + url.charCodeAt(i);
-      hash |= 0;
-    }
-    return `img_${Math.abs(hash)}`;
-  };
+  const isVideo = (url: string) => /\.(mp4|webm|mov|m4v)(?:\?|$)/i.test(url);
 
   const handleSaveContent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,16 +173,28 @@ export default function AdminDashboard() {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (!file) return;
 
     if (!auth.currentUser) {
       alert('User is not authenticated. Please log in.');
       return;
     }
+    
+    // Enforce 50MB limit on video uploads
+    if (file.type.startsWith('video/') && file.size > 50 * 1024 * 1024) {
+      alert('Video size must be less than 50MB.');
+      e.target.value = '';
+      return;
+    }
 
     setUploading(true);
     try {
+      // Compress if it is an image
+      if (file.type.startsWith('image/')) {
+        file = await compressImage(file);
+      }
+      
       const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
       const snapshot = await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(snapshot.ref);
@@ -183,6 +232,23 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Error removing image:', err);
       alert('Failed to remove image.');
+    }
+  };
+
+  const handleMoveGalleryImage = async (index: number, direction: number) => {
+    const newImages = [...galleryImages];
+    const temp = newImages[index];
+    newImages[index] = newImages[index + direction];
+    newImages[index + direction] = temp;
+    setGalleryImages(newImages);
+
+    if (!auth.currentUser) return;
+    try {
+      const docRef = doc(db, 'content', 'home');
+      await updateDoc(docRef, { galleryImages: newImages });
+    } catch (err) {
+      console.error('Error moving image:', err);
+      alert('Failed to reorder image.');
     }
   };
 
@@ -264,10 +330,10 @@ export default function AdminDashboard() {
       </nav>
 
       {/* Main Split Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         
         {/* Left Column - Controls */}
-        <div className="w-[400px] bg-white border-r border-stone-200 flex flex-col overflow-y-auto z-10 shadow-lg shrink-0">
+        <div className="w-full lg:w-[400px] h-[50vh] lg:h-auto bg-white border-b lg:border-b-0 lg:border-r border-stone-200 flex flex-col overflow-y-auto z-20 shadow-lg shrink-0">
           <form onSubmit={handleSaveContent} className="flex flex-col min-h-full">
             <div className="p-6 space-y-8 flex-1">
               <div>
@@ -427,25 +493,39 @@ export default function AdminDashboard() {
 
               {/* Gallery List inside Left Pane */}
               <div className="space-y-4 pt-6 border-t border-stone-100">
-                <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Canvas Draggable Images</h3>
+                <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Inspiration Area (Draggable)</h3>
                 <label className="cursor-pointer flex items-center justify-center p-3 bg-stone-50 border-2 border-dashed border-stone-300 text-stone-700 hover:bg-stone-100 rounded-lg transition-colors">
                   {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                  <span className="ml-2 font-medium text-sm">Upload New Image</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+                  <span className="ml-2 font-medium text-sm">Upload Media (Photo/Video)</span>
+                  <input type="file" accept="image/*,video/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
                 </label>
                 
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   {galleryImages.map((url, idx) => (
                     <div key={idx} className="relative aspect-square bg-stone-100 rounded-lg overflow-hidden group">
-                      <Image src={url} alt="Gallery" fill className="object-cover" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      {isVideo(url) ? (
+                        <video src={url} autoPlay loop muted playsInline className="object-cover w-full h-full" />
+                      ) : (
+                        <Image src={url} alt="Gallery" fill className="object-cover" />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleMoveGalleryImage(idx, -1)}
+                          disabled={idx === 0}
+                          className="p-1.5 bg-white text-stone-800 rounded-full hover:bg-stone-200 transition-colors disabled:opacity-50"
+                        ><ArrowLeft className="h-4 w-4" /></button>
                         <button
                           type="button"
                           onClick={() => handleDeleteImage(url)}
-                          className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                          className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+                        ><Trash2 className="h-4 w-4" /></button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveGalleryImage(idx, 1)}
+                          disabled={idx === galleryImages.length - 1}
+                          className="p-1.5 bg-white text-stone-800 rounded-full hover:bg-stone-200 transition-colors disabled:opacity-50"
+                        ><ArrowRight className="h-4 w-4" /></button>
                       </div>
                     </div>
                   ))}
@@ -486,9 +566,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* Canvas Container */}
-          <div className="flex-1 overflow-auto flex justify-center pb-24 pt-20 px-4 md:px-8">
+          <div className="flex-1 overflow-auto pb-24 pt-20 px-4 md:px-8">
             {previewDevice === 'desktop' ? (
-              <div className="w-full max-w-[1024px] flex flex-col gap-8">
+              <div className="w-[1024px] mx-auto shrink-0 flex flex-col gap-8">
                 {/* DESKTOP CANVAS 1 (Hero + Services) */}
                 <div className="relative bg-stone-50 shadow-2xl overflow-hidden ring-1 ring-stone-900/5 w-full h-[950px]">
                   <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '8px 8px' }} />
@@ -513,6 +593,18 @@ export default function AdminDashboard() {
                       <div className="inline-flex items-center gap-2 bg-stone-50 text-stone-950 px-8 py-4 text-lg font-medium pointer-events-none">Inquire About Your Event <ChevronRight className="w-5 h-5" /></div>
                     </div>
                   </Rnd>
+
+                  <div className="absolute flex justify-center gap-6 z-10" style={{ top: socialIconsTop, left: '50%', transform: 'translateX(-50%)' }}>
+                    {formData.instagramUrl && (
+                      <div className="text-stone-50"><svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"></line></svg></div>
+                    )}
+                    {formData.facebookUrl && (
+                      <div className="text-stone-50"><svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" /></svg></div>
+                    )}
+                    {formData.tiktokUrl && (
+                      <div className="text-stone-50"><svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg></div>
+                    )}
+                  </div>
 
                   <Rnd bounds="parent" dragGrid={[8, 8]} resizeGrid={[8, 8]} position={{ x: layouts.service1?.x ?? 62, y: layouts.service1?.y ?? 650 }} size={{ width: layouts.service1?.width ?? 280, height: layouts.service1?.height ?? 250 }} onDragStop={(e, d) => updateLayout('service1', { x: d.x, y: d.y })} onResizeStop={(e, dir, ref, delta, pos) => updateLayout('service1', { width: ref.style.width, height: ref.style.height, ...pos })} className="group border border-dashed border-transparent hover:border-stone-400 cursor-move bg-white/80 backdrop-blur-sm shadow-sm rounded-xl p-6 flex flex-col items-center text-center">
                     <div className="w-full h-full flex flex-col items-center pointer-events-none">
@@ -539,53 +631,62 @@ export default function AdminDashboard() {
                   </Rnd>
                 </div>
 
-                {/* MOCK EVENT GALLERY - Responsive Flow */}
-                <div className="w-full bg-white shadow-xl ring-1 ring-stone-900/5 py-16 px-6 text-center border-t border-stone-200">
-                  <h2 className="text-3xl font-serif mb-4 text-stone-800">Event Gallery</h2>
-                  <p className="text-stone-500 text-sm mb-8">This responsive section will automatically populate here based on the albums you create.</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 opacity-40 pointer-events-none">
-                    {[1,2,3].map(i => <div key={i} className="aspect-[4/3] bg-stone-200 rounded-xl border border-stone-300"></div>)}
-                  </div>
-                </div>
-
-                {/* DESKTOP CANVAS 2 (Draggable Images) */}
-                <div className="relative bg-stone-50 shadow-2xl overflow-hidden ring-1 ring-stone-900/5 w-full h-[850px]">
-                  <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '8px 8px' }} />
-                  {galleryImages.map((url, idx) => {
-                    const key = getSafeKey(url);
-                    const defaultX = 62 + (idx % 3) * 310;
-                    const defaultY = 950 + Math.floor(idx / 3) * 310;
-                    const itemY = (layouts[key]?.y ?? defaultY) - 950;
-                    return (
-                      <Rnd
-                        key={key}
-                        bounds="parent"
-                        dragGrid={[8, 8]}
-                        resizeGrid={[8, 8]}
-                        position={{ x: layouts[key]?.x ?? defaultX, y: itemY }}
-                        size={{ width: layouts[key]?.width ?? 280, height: layouts[key]?.height ?? 280 }}
-                        onDragStop={(e, d) => updateLayout(key, { x: d.x, y: d.y + 950 })}
-                        onResizeStop={(e, dir, ref, delta, pos) => updateLayout(key, { width: ref.style.width, height: ref.style.height, x: pos.x, y: pos.y + 950 })}
-                        className="group border border-dashed border-transparent hover:border-stone-400 cursor-move shadow-md rounded-xl overflow-hidden bg-stone-200"
-                      >
-                        <div className="w-full h-full relative pointer-events-none">
-                          <Image src={url} alt={`Gallery ${idx}`} fill className="object-cover" />
+                {/* EVENT GALLERY - Responsive Flow */}
+                {events.length > 0 && (
+                  <div className="w-full bg-white shadow-xl ring-1 ring-stone-900/5 py-16 px-6 text-center border-t border-stone-200">
+                    <h2 className="text-3xl font-serif mb-4 text-stone-800">Event Gallery</h2>
+                    <p className="text-stone-500 text-sm mb-8">A glimpse into our beautifully coordinated events.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pointer-events-none">
+                      {events.map((event: any) => (
+                        <div key={event.id} className="group">
+                          <div className="aspect-[4/3] relative rounded-xl overflow-hidden mb-4 shadow-sm bg-stone-200">
+                            {event.images && event.images.length > 0 ? (
+                              <Image src={event.images[0]} alt={event.title} fill className="object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-stone-400">No photos</div>
+                            )}
+                          </div>
+                          <h3 className="text-xl font-medium text-stone-900">{event.title}</h3>
                         </div>
-                      </Rnd>
-                    );
-                  })}
-                </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* DESKTOP GRID 2 (Inspiration Grid - Replaced Canvas) */}
+                {galleryImages.length > 0 && (
+                  <div className="w-full bg-stone-100 shadow-2xl ring-1 ring-stone-900/5 py-16 px-6 text-center border-t border-stone-200">
+                    <h2 className="text-3xl font-serif mb-4 text-stone-800">Inspiration</h2>
+                    <p className="text-stone-500 text-sm mb-12">A mood board of our favorite designs and concepts.</p>
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-6 pointer-events-none max-w-5xl mx-auto">
+                      {galleryImages.map((url, idx) => (
+                        <div key={idx} className="aspect-square relative rounded-xl overflow-hidden shadow-sm bg-stone-200">
+                          {isVideo(url) ? (
+                            <video src={url} autoPlay loop muted playsInline className="object-cover w-full h-full" />
+                          ) : (
+                            <Image src={url} alt={`Gallery ${idx}`} fill className="object-cover" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="w-[375px] bg-white shadow-2xl ring-1 ring-stone-900/5 overflow-hidden flex flex-col font-sans">
+              <div className="w-[375px] mx-auto shrink-0 bg-white shadow-2xl ring-1 ring-stone-900/5 overflow-hidden flex flex-col font-sans">
                 {/* Mobile Hero Preview */}
-                <div className="relative w-full h-[500px] flex flex-col items-center justify-center bg-stone-950 px-6 text-center">
+                <div className="relative w-full min-h-[600px] py-16 flex flex-col items-center justify-center bg-stone-950 px-6 text-center">
                   <div className="absolute inset-0 opacity-40 bg-cover bg-center" style={{ backgroundImage: `url(${heroBgImage || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069&auto=format&fit=crop'})` }}></div>
                   <div className="relative z-10 flex flex-col items-center gap-6">
                     <h1 className="text-3xl font-serif text-stone-50 drop-shadow-md">{formData.heroTitle || 'Crafting Unforgettable Moments'}</h1>
                     <p className="text-sm text-stone-200 font-light">{formData.heroSubtitle || 'Exclusive event coordination for elegant weddings and private celebrations.'}</p>
                     <div className="inline-flex items-center gap-2 bg-stone-50 text-stone-950 px-6 py-3 text-sm font-medium rounded-full shadow-lg">
                       Inquire <ChevronRight className="w-4 h-4" />
+                    </div>
+                    <div className="flex justify-center gap-6 mt-4">
+                      {formData.instagramUrl && <div className="text-stone-50"><svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"></line></svg></div>}
+                      {formData.facebookUrl && <div className="text-stone-50"><svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" /></svg></div>}
+                      {formData.tiktokUrl && <div className="text-stone-50"><svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg></div>}
                     </div>
                   </div>
                 </div>
@@ -607,21 +708,38 @@ export default function AdminDashboard() {
                     <p className="text-stone-600 text-xs leading-relaxed">{formData.service3Desc || 'Exclusive and intimate celebrations tailored to your unique style.'}</p>
                   </div>
                 </div>
-                {/* Mock Event Gallery Preview */}
-                <div className="py-12 px-6 bg-stone-50 text-center border-t border-stone-200">
-                  <h2 className="text-2xl font-serif mb-4 text-stone-800">Event Gallery</h2>
-                  <div className="space-y-4 opacity-40 pointer-events-none">
-                    <div className="aspect-[4/3] bg-stone-200 rounded-xl border border-stone-300"></div>
+                {/* Event Gallery Preview */}
+                {events.length > 0 && (
+                  <div className="py-12 px-6 bg-stone-50 text-center border-t border-stone-200">
+                    <h2 className="text-2xl font-serif mb-4 text-stone-800">Event Gallery</h2>
+                    <div className="space-y-6 pointer-events-none">
+                      {events.map((event: any) => (
+                        <div key={event.id} className="group">
+                          <div className="aspect-[4/3] relative rounded-xl overflow-hidden mb-3 shadow-sm bg-stone-200">
+                            {event.images && event.images.length > 0 ? (
+                              <Image src={event.images[0]} alt={event.title} fill className="object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-stone-400">No photos</div>
+                            )}
+                          </div>
+                          <h3 className="text-lg font-medium text-stone-900">{event.title}</h3>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                {/* Mobile Draggable Images Mock Preview */}
+                )}
+                {/* Mobile Inspiration Grid Preview */}
                 {galleryImages.length > 0 && (
                   <div className="py-12 px-6 bg-stone-100 border-t border-stone-200">
                     <h2 className="text-2xl font-serif mb-6 text-center text-stone-800">Inspiration</h2>
-                    <div className="grid grid-cols-2 gap-3 opacity-60 pointer-events-none">
+                    <div className="grid grid-cols-2 gap-3 pointer-events-none">
                       {galleryImages.map((url, idx) => (
                         <div key={idx} className="aspect-square bg-stone-200 rounded-lg overflow-hidden relative shadow-sm">
-                          <Image src={url} alt="img" fill className="object-cover"/>
+                          {isVideo(url) ? (
+                            <video src={url} autoPlay loop muted playsInline className="object-cover w-full h-full" />
+                          ) : (
+                            <Image src={url} alt="img" fill className="object-cover" />
+                          )}
                         </div>
                       ))}
                     </div>

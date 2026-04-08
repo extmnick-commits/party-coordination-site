@@ -30,14 +30,7 @@ export default function Home() {
     fetchPageData();
   }, []);
 
-  const getSafeKey = (url: string) => {
-    let hash = 0;
-    for (let i = 0; i < url.length; i++) {
-      hash = (hash << 5) - hash + url.charCodeAt(i);
-      hash |= 0;
-    }
-    return `img_${Math.abs(hash)}`;
-  };
+  const isVideo = (url: string) => /\.(mp4|webm|mov|m4v)(?:\?|$)/i.test(url);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -76,15 +69,21 @@ export default function Home() {
   const { heroTitle, heroSubtitle, service1Desc, service2Desc, service3Desc, galleryImages = [], events = [], layouts = {}, heroBgImage, instagramUrl, facebookUrl, tiktokUrl } = pageData;
 
   // Calculate dynamic top position for social icons based on hero button
-  const heroButtonHeight = layouts.heroButton?.height ? parseFloat(layouts.heroButton.height.toString()) : 60; // Default to 60px if not set or 'auto'
-  const socialIconsTop = (layouts.heroButton?.y ?? 380) + heroButtonHeight + 40; // 40px padding below the button
+  const getSafeHeight = (val: any, fallback: number) => {
+    if (!val) return fallback;
+    const parsed = parseFloat(val.toString());
+    return isNaN(parsed) ? fallback : parsed;
+  };
+
+  const heroButtonHeight = getSafeHeight(layouts.heroButton?.height, 60);
+  const socialIconsTop = (layouts.heroButton?.y ?? 380) + heroButtonHeight + 40;
 
   return (
     <div className="min-h-screen bg-stone-50 font-sans text-stone-900 selection:bg-stone-200">
       
       {/* DESKTOP: Unified Builder Layout Canvas (Part 1: Hero & Services) */}
-      <div className="hidden lg:block w-full overflow-x-hidden bg-stone-100 border-b border-stone-200">
-        <div className="relative w-full max-w-[1024px] mx-auto h-[950px] bg-white shadow-sm overflow-hidden">
+      <div className="hidden lg:block w-full overflow-x-auto bg-stone-100 border-b border-stone-200">
+        <div className="relative w-[1024px] mx-auto shrink-0 h-[950px] bg-white shadow-sm overflow-hidden">
           
           {/* Hero Background Block */}
           <div className="absolute top-0 left-0 w-full h-[600px] bg-stone-950 pointer-events-none" >
@@ -269,46 +268,27 @@ export default function Home() {
         </section>
       )}
 
-      {/* DESKTOP: Unified Builder Layout Canvas (Part 2: Draggable Images) */}
+      {/* Inspiration Area (Responsive Grid for both Desktop and Mobile) */}
       {galleryImages.length > 0 && (
-        <div className="hidden lg:block w-full overflow-x-hidden bg-stone-100 border-b border-stone-200">
-          <div className="relative w-full max-w-[1024px] mx-auto h-[850px] bg-white shadow-sm overflow-hidden">
-            {galleryImages.map((url: string, idx: number) => {
-              const key = getSafeKey(url);
-              const defaultX = 62 + (idx % 3) * 310;
-              const defaultY = 950 + Math.floor(idx / 3) * 310;
-              const itemY = (layouts[key]?.y ?? defaultY) - 950;
-              return (
-                <div
-                  key={key}
-                  style={{
-                    position: 'absolute',
-                    left: layouts[key]?.x ?? defaultX,
-                    top: itemY,
-                    width: layouts[key]?.width ?? 280,
-                    height: layouts[key]?.height ?? 280,
-                  }}
-                  className="shadow-md rounded-xl overflow-hidden bg-stone-200 z-10"
-                >
-                  <Image src={url} alt={`Gallery ${idx}`} fill className="object-cover" />
+        <section id="inspiration" className="py-24 px-6 bg-stone-100 border-b border-stone-200">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-serif mb-4">Inspiration</h2>
+              <p className="text-stone-600">A mood board of our favorite designs and concepts.</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {galleryImages.map((url: string, idx: number) => (
+                <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden shadow-sm bg-stone-200 hover:shadow-md transition-shadow">
+                  {isVideo(url) ? (
+                    <video src={url} autoPlay loop muted playsInline className="object-cover w-full h-full pointer-events-none" />
+                  ) : (
+                    <Image src={url} alt={`Inspiration ${idx}`} fill className="object-cover pointer-events-none" draggable={false} />
+                  )}
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* MOBILE: Draggable Images mapped to a normal responsive grid */}
-      {galleryImages.length > 0 && (
-        <div className="block lg:hidden py-16 px-6 bg-stone-100 border-b border-stone-200">
-          <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto">
-            {galleryImages.map((url: string, idx: number) => (
-              <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden shadow-sm bg-stone-200">
-                <Image src={url} alt={`Gallery ${idx}`} fill className="object-cover" />
-              </div>
-            ))}
-          </div>
-        </div>
+        </section>
       )}
 
       {/* Contact / Booking Section */}
