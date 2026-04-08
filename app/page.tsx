@@ -6,11 +6,53 @@ import { collection, addDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import Image from "next/image";
 
+interface LayoutPosition {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface HeroButtonLayout {
+  y: number;
+  width: string | number;
+  height: string | number;
+}
+
+interface EventData {
+  id: string;
+  title:string;
+  images: string[];
+}
+
+interface PageData {
+  heroTitle?: string;
+  heroSubtitle?: string;
+  service1Desc?: string;
+  service2Desc?: string;
+  service3Desc?: string;
+  galleryImages?: string[];
+  events?: EventData[];
+  layouts?: {
+    heroTitle?: LayoutPosition;
+    heroSubtitle?: LayoutPosition;
+    heroButton?: HeroButtonLayout;
+    service1?: LayoutPosition;
+    service2?: LayoutPosition;
+    service3?: LayoutPosition;
+  };
+  heroBgImage?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  tiktokUrl?: string;
+  notificationEmail?: string;
+}
+
 export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
-  const [pageData, setPageData] = useState<any>(null);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [pageData, setPageData] = useState<PageData | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
@@ -18,7 +60,7 @@ export default function Home() {
       try {
         const docSnap = await getDoc(doc(db, "content", "home"));
         if (docSnap.exists()) {
-          setPageData(docSnap.data());
+          setPageData(docSnap.data() as PageData);
         } else {
           setPageData({}); // fallback to avoid errors
         }
@@ -41,6 +83,7 @@ export default function Home() {
     const data = {
       name: formData.get("name"),
       email: formData.get("email"),
+      phone: formData.get("phone"),
       date: formData.get("date"),
       details: formData.get("details"),
       createdAt: new Date(),
@@ -50,13 +93,13 @@ export default function Home() {
       await addDoc(collection(db, "inquiries"), data);
       
       // If email notification is configured, write to the 'mail' collection
-      if (pageData.notificationEmail) {
+      if (pageData?.notificationEmail) {
         await addDoc(collection(db, "mail"), {
           to: pageData.notificationEmail,
           message: {
             subject: `New Event Inquiry from ${data.name}`,
-            text: `You have a new inquiry!\n\nName: ${data.name}\nEmail: ${data.email}\nDate: ${data.date}\nDetails: ${data.details}`,
-            html: `<p><strong>You have a new inquiry!</strong></p><p><strong>Name:</strong> ${data.name}</p><p><strong>Email:</strong> ${data.email}</p><p><strong>Date:</strong> ${data.date}</p><p><strong>Details:</strong><br/>${data.details}</p>`,
+            text: `You have a new inquiry!\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\nDate: ${data.date}\nDetails: ${data.details}`,
+            html: `<p><strong>You have a new inquiry!</strong></p><p><strong>Name:</strong> ${data.name}</p><p><strong>Email:</strong> ${data.email}</p><p><strong>Phone:</strong> ${data.phone}</p><p><strong>Date:</strong> ${data.date}</p><p><strong>Details:</strong><br/>${data.details}</p>`,
           },
           createdAt: new Date(),
         });
@@ -266,7 +309,7 @@ export default function Home() {
             <p className="text-stone-600">A glimpse into our beautifully coordinated events.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {events.map((event: any) => (
+            {events.map((event) => (
               <div key={event.id} className="group cursor-pointer" onClick={() => { setSelectedEvent(event); setLightboxIndex(0); }}>
                 <div className="aspect-[4/3] relative rounded-2xl overflow-hidden mb-4 shadow-sm group-hover:shadow-md transition-all">
                   {event.images && event.images.length > 0 ? (
@@ -323,6 +366,10 @@ export default function Home() {
               <label htmlFor="email" className="block text-sm font-medium text-stone-700 mb-2">Email Address</label>
               <input type="email" id="email" name="email" className="w-full border border-stone-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-stone-900 bg-transparent" required />
             </div>
+          </div>
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-stone-700 mb-2">Phone Number (Optional)</label>
+            <input type="tel" id="phone" name="phone" className="w-full border border-stone-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-stone-900 bg-transparent" />
           </div>
           <div>
             <label htmlFor="date" className="block text-sm font-medium text-stone-700 mb-2">Estimated Event Date</label>
