@@ -7,7 +7,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { signOut } from 'firebase/auth';
 import { auth, db, storage } from '../firebase';
 import Image from 'next/image';
-import { Save, ImagePlus, Loader2, LogOut, Trash2, LayoutDashboard, Monitor, Smartphone, Briefcase, CalendarDays, Wine, ChevronRight, UploadCloud } from 'lucide-react';
+import { Save, ImagePlus, Loader2, LogOut, Trash2, LayoutDashboard, Monitor, Smartphone, Briefcase, CalendarDays, Wine, ChevronRight, UploadCloud, Plus, ArrowUp, ArrowDown } from 'lucide-react';
 import { Rnd } from 'react-rnd';
 
 export default function AdminDashboard() {
@@ -20,6 +20,7 @@ export default function AdminDashboard() {
   const [heroBgImage, setHeroBgImage] = useState<string>('');
   const [uploadingHero, setUploadingHero] = useState(false);
   const [layouts, setLayouts] = useState<Record<string, { x: number; y: number; width: number | string; height: number | string }>>({});
+  const [events, setEvents] = useState<{ id: string; title: string; images: string[] }[]>([]);
   
   const [formData, setFormData] = useState({
     heroTitle: '',
@@ -53,6 +54,7 @@ export default function AdminDashboard() {
           setGalleryImages(data.galleryImages || []);
           setHeroBgImage(data.heroBgImage || '');
           setLayouts(data.layouts || {});
+          setEvents(data.events || []);
         }
       } catch (err) {
         console.error('Error fetching admin content:', err);
@@ -94,7 +96,7 @@ export default function AdminDashboard() {
     setSaving(true);
     try {
       const docRef = doc(db, 'content', 'home');
-      await updateDoc(docRef, { ...formData, layouts, heroBgImage });
+      await updateDoc(docRef, { ...formData, layouts, heroBgImage, events });
       alert('Content published successfully!');
     } catch (err) {
       console.error('Error saving content:', err);
@@ -182,6 +184,50 @@ export default function AdminDashboard() {
       console.error('Error removing image:', err);
       alert('Failed to remove image.');
     }
+  };
+
+  const handleAddEvent = () => {
+    setEvents([...events, { id: Date.now().toString(), title: 'New Event', images: [] }]);
+  };
+
+  const handleDeleteEvent = (id: string) => {
+    if (!confirm('Are you sure you want to delete this event album?')) return;
+    setEvents(events.filter(e => e.id !== id));
+  };
+
+  const handleMoveEvent = (index: number, direction: number) => {
+    const newEvents = [...events];
+    const temp = newEvents[index];
+    newEvents[index] = newEvents[index + direction];
+    newEvents[index + direction] = temp;
+    setEvents(newEvents);
+  };
+
+  const handleEventTitleChange = (id: string, newTitle: string) => {
+    setEvents(events.map(e => e.id === id ? { ...e, title: newTitle } : e));
+  };
+
+  const handleEventImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, eventId: string) => {
+    const file = e.target.files?.[0];
+    if (!file || !auth.currentUser) return;
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `events/${eventId}/${Date.now()}_${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      setEvents(events.map(ev => ev.id === eventId ? { ...ev, images: [...ev.images, downloadURL] } : ev));
+    } catch (err) {
+      console.error('Error uploading event image:', err);
+      alert('Failed to upload image to event.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteEventImage = (eventId: string, imageUrl: string) => {
+    if (!confirm('Are you sure you want to remove this photo from the event?')) return;
+    setEvents(events.map(ev => ev.id === eventId ? { ...ev, images: ev.images.filter(img => img !== imageUrl) } : ev));
   };
 
   const handleLogout = async () => {
@@ -296,6 +342,51 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
+                {/* Event Albums Section */}
+                <div className="space-y-4 pt-6 mt-6 border-t border-stone-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Event Albums (Gallery)</h3>
+                    <button type="button" onClick={handleAddEvent} className="flex items-center gap-1 text-xs bg-stone-200 hover:bg-stone-300 text-stone-800 px-3 py-1.5 rounded-md font-medium transition-colors">
+                      <Plus className="w-3 h-3"/> Add Event
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {events.map((event, index) => (
+                      <div key={event.id} className="border border-stone-200 rounded-lg p-4 bg-stone-50 space-y-3 shadow-sm">
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            value={event.title} 
+                            onChange={(e) => handleEventTitleChange(event.id, e.target.value)}
+                            className="flex-1 px-3 py-1.5 text-sm border border-stone-300 rounded focus:ring-2 focus:ring-stone-400 bg-white"
+                            placeholder="Event Title"
+                          />
+                          <div className="flex gap-1">
+                            <button type="button" onClick={() => handleMoveEvent(index, -1)} disabled={index === 0} className="p-1.5 bg-white border border-stone-200 rounded hover:bg-stone-100 disabled:opacity-50 transition-colors" title="Move Up"><ArrowUp className="w-4 h-4"/></button>
+                            <button type="button" onClick={() => handleMoveEvent(index, 1)} disabled={index === events.length - 1} className="p-1.5 bg-white border border-stone-200 rounded hover:bg-stone-100 disabled:opacity-50 transition-colors" title="Move Down"><ArrowDown className="w-4 h-4"/></button>
+                            <button type="button" onClick={() => handleDeleteEvent(event.id)} className="p-1.5 bg-red-50 text-red-600 border border-red-100 rounded hover:bg-red-100 transition-colors" title="Delete Event"><Trash2 className="w-4 h-4"/></button>
+                          </div>
+                        </div>
+                        <label className="cursor-pointer flex items-center justify-center p-2 bg-white border border-dashed border-stone-300 text-stone-600 hover:bg-stone-50 rounded transition-colors text-sm font-medium">
+                          <ImagePlus className="h-4 w-4 mr-2" /> Upload Photos
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleEventImageUpload(e, event.id)} disabled={uploading} />
+                        </label>
+                        {event.images.length > 0 && (
+                          <div className="grid grid-cols-3 gap-2 mt-2">
+                            {event.images.map((img, imgIdx) => (
+                              <div key={imgIdx} className="relative aspect-square bg-stone-200 rounded overflow-hidden group border border-stone-200">
+                                <Image src={img} alt="Event img" fill className="object-cover" />
+                                <button type="button" onClick={() => handleDeleteEventImage(event.id, img)} className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3 h-3"/></button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-4 pt-6 mt-6 border-t border-stone-100">
                   <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Social Media Links</h3>
                   <div>
@@ -336,7 +427,7 @@ export default function AdminDashboard() {
 
               {/* Gallery List inside Left Pane */}
               <div className="space-y-4 pt-6 border-t border-stone-100">
-                <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Gallery Inventory</h3>
+                <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Canvas Draggable Images</h3>
                 <label className="cursor-pointer flex items-center justify-center p-3 bg-stone-50 border-2 border-dashed border-stone-300 text-stone-700 hover:bg-stone-100 rounded-lg transition-colors">
                   {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
                   <span className="ml-2 font-medium text-sm">Upload New Image</span>
@@ -395,163 +486,149 @@ export default function AdminDashboard() {
           </div>
 
           {/* Canvas Container */}
-          <div className="flex-1 overflow-auto flex justify-center pb-24 pt-20">
-            <div className={`relative bg-stone-50 shadow-2xl transition-all duration-300 origin-top overflow-hidden ring-1 ring-stone-900/5 ${previewDevice === 'mobile' ? 'w-[375px]' : 'w-full max-w-[1024px]'} h-[1800px]`}>
-               
-              {/* Visual Grid */}
-              <div 
-                className="absolute inset-0 pointer-events-none" 
-                style={{
-                  backgroundImage: 'linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)',
-                  backgroundSize: '8px 8px'
-                }}
-              />
-
-              {/* Hero Background Aesthetic layer */}
-              <div className="absolute top-0 left-0 w-full h-[600px] bg-stone-950 pointer-events-none">
-                <div className="absolute inset-0 opacity-40 bg-cover bg-center" style={{ backgroundImage: `url(${heroBgImage || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069&auto=format&fit=crop'})` }}></div>
-              </div>
-
-              {/* -- RND Drag Zones -- */}
-              
-              <Rnd
-                bounds="parent"
-                dragGrid={[8, 8]}
-                resizeGrid={[8, 8]}
-                position={{ x: layouts.heroTitle?.x ?? 112, y: layouts.heroTitle?.y ?? 150 }}
-                size={{ width: layouts.heroTitle?.width ?? 800, height: layouts.heroTitle?.height ?? 100 }}
-                onDragStop={(e, d) => updateLayout('heroTitle', { x: d.x, y: d.y })}
-                onResizeStop={(e, dir, ref, delta, pos) => updateLayout('heroTitle', { width: ref.style.width, height: ref.style.height, ...pos })}
-                className="group border border-dashed border-transparent hover:border-white/50 cursor-move"
-              >
-                <div className="w-full h-full flex items-center justify-center text-center drop-shadow-md">
-                  <h1 className="text-4xl md:text-6xl font-serif tracking-tight text-stone-50 pointer-events-none">
-                    {formData.heroTitle || 'Crafting Unforgettable Moments'}
-                  </h1>
-                </div>
-              </Rnd>
-
-              <Rnd
-                bounds="parent"
-                dragGrid={[8, 8]}
-                resizeGrid={[8, 8]}
-                position={{ x: layouts.heroSubtitle?.x ?? 212, y: layouts.heroSubtitle?.y ?? 270 }}
-                size={{ width: layouts.heroSubtitle?.width ?? 600, height: layouts.heroSubtitle?.height ?? 80 }}
-                onDragStop={(e, d) => updateLayout('heroSubtitle', { x: d.x, y: d.y })}
-                onResizeStop={(e, dir, ref, delta, pos) => updateLayout('heroSubtitle', { width: ref.style.width, height: ref.style.height, ...pos })}
-                className="group border border-dashed border-transparent hover:border-white/50 cursor-move"
-              >
-                <div className="w-full h-full flex items-center justify-center text-center drop-shadow-md">
-                  <p className="text-lg md:text-2xl text-stone-200 font-light pointer-events-none">
-                    {formData.heroSubtitle || 'Exclusive event coordination for elegant weddings and private celebrations.'}
-                  </p>
-                </div>
-              </Rnd>
-
-              <Rnd
-                bounds="parent"
-                dragGrid={[8, 8]}
-                resizeGrid={[8, 8]}
-                position={{ x: layouts.heroButton?.x ?? 412, y: layouts.heroButton?.y ?? 380 }}
-                size={{ width: layouts.heroButton?.width ?? 200, height: layouts.heroButton?.height ?? 60 }}
-                onDragStop={(e, d) => updateLayout('heroButton', { x: d.x, y: d.y })}
-                onResizeStop={(e, dir, ref, delta, pos) => updateLayout('heroButton', { width: ref.style.width, height: ref.style.height, ...pos })}
-                className="group border border-dashed border-transparent hover:border-white/50 cursor-move"
-              >
-                <div className="w-full h-full flex items-center justify-center text-center">
-                  <div className="inline-flex items-center gap-2 bg-stone-50 text-stone-950 px-8 py-4 text-lg font-medium pointer-events-none">
-                    Inquire About Your Event <ChevronRight className="w-5 h-5" />
+          <div className="flex-1 overflow-auto flex justify-center pb-24 pt-20 px-4 md:px-8">
+            {previewDevice === 'desktop' ? (
+              <div className="w-full max-w-[1024px] flex flex-col gap-8">
+                {/* DESKTOP CANVAS 1 (Hero + Services) */}
+                <div className="relative bg-stone-50 shadow-2xl overflow-hidden ring-1 ring-stone-900/5 w-full h-[950px]">
+                  <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '8px 8px' }} />
+                  <div className="absolute top-0 left-0 w-full h-[600px] bg-stone-950 pointer-events-none">
+                    <div className="absolute inset-0 opacity-40 bg-cover bg-center" style={{ backgroundImage: `url(${heroBgImage || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069&auto=format&fit=crop'})` }}></div>
                   </div>
-                </div>
-              </Rnd>
 
-              <Rnd
-                bounds="parent"
-                dragGrid={[8, 8]}
-                resizeGrid={[8, 8]}
-                position={{ x: layouts.service1?.x ?? 62, y: layouts.service1?.y ?? 650 }}
-                size={{ width: layouts.service1?.width ?? 280, height: layouts.service1?.height ?? 250 }}
-                onDragStop={(e, d) => updateLayout('service1', { x: d.x, y: d.y })}
-                onResizeStop={(e, dir, ref, delta, pos) => updateLayout('service1', { width: ref.style.width, height: ref.style.height, ...pos })}
-                className="group border border-dashed border-transparent hover:border-stone-400 cursor-move bg-white/80 backdrop-blur-sm shadow-sm rounded-xl p-6 flex flex-col items-center text-center"
-              >
-                <div className="w-full h-full flex flex-col items-center pointer-events-none">
-                  <div className="w-16 h-16 bg-stone-100 flex items-center justify-center rounded-full mb-4">
-                    <Briefcase className="w-8 h-8 text-stone-900" />
-                  </div>
-                  <h3 className="text-xl font-medium mb-3 text-stone-900">Corporate Events</h3>
-                  <p className="text-stone-600 text-sm leading-relaxed overflow-hidden">
-                    {formData.service1Desc || 'Professional and seamless coordination for galas and retreats.'}
-                  </p>
-                </div>
-              </Rnd>
-
-              <Rnd
-                bounds="parent"
-                dragGrid={[8, 8]}
-                resizeGrid={[8, 8]}
-                position={{ x: layouts.service2?.x ?? 372, y: layouts.service2?.y ?? 650 }}
-                size={{ width: layouts.service2?.width ?? 280, height: layouts.service2?.height ?? 250 }}
-                onDragStop={(e, d) => updateLayout('service2', { x: d.x, y: d.y })}
-                onResizeStop={(e, dir, ref, delta, pos) => updateLayout('service2', { width: ref.style.width, height: ref.style.height, ...pos })}
-                className="group border border-dashed border-transparent hover:border-stone-400 cursor-move bg-white/80 backdrop-blur-sm shadow-sm rounded-xl p-6 flex flex-col items-center text-center"
-              >
-                <div className="w-full h-full flex flex-col items-center pointer-events-none">
-                  <div className="w-16 h-16 bg-stone-100 flex items-center justify-center rounded-full mb-4">
-                    <CalendarDays className="w-8 h-8 text-stone-900" />
-                  </div>
-                  <h3 className="text-xl font-medium mb-3 text-stone-900">Weddings</h3>
-                  <p className="text-stone-600 text-sm leading-relaxed overflow-hidden">
-                    {formData.service2Desc || 'Bespoke wedding planning ensuring perfectly executed details.'}
-                  </p>
-                </div>
-              </Rnd>
-
-              <Rnd
-                bounds="parent"
-                dragGrid={[8, 8]}
-                resizeGrid={[8, 8]}
-                position={{ x: layouts.service3?.x ?? 682, y: layouts.service3?.y ?? 650 }}
-                size={{ width: layouts.service3?.width ?? 280, height: layouts.service3?.height ?? 250 }}
-                onDragStop={(e, d) => updateLayout('service3', { x: d.x, y: d.y })}
-                onResizeStop={(e, dir, ref, delta, pos) => updateLayout('service3', { width: ref.style.width, height: ref.style.height, ...pos })}
-                className="group border border-dashed border-transparent hover:border-stone-400 cursor-move bg-white/80 backdrop-blur-sm shadow-sm rounded-xl p-6 flex flex-col items-center text-center"
-              >
-                <div className="w-full h-full flex flex-col items-center pointer-events-none">
-                  <div className="w-16 h-16 bg-stone-100 flex items-center justify-center rounded-full mb-4">
-                    <Wine className="w-8 h-8 text-stone-900" />
-                  </div>
-                  <h3 className="text-xl font-medium mb-3 text-stone-900">Private Parties</h3>
-                  <p className="text-stone-600 text-sm leading-relaxed overflow-hidden">
-                    {formData.service3Desc || 'Exclusive and intimate celebrations tailored to your unique style.'}
-                  </p>
-                </div>
-              </Rnd>
-
-              {galleryImages.map((url, idx) => {
-                const key = getSafeKey(url);
-                const defaultX = 62 + (idx % 3) * 310;
-                const defaultY = 950 + Math.floor(idx / 3) * 310;
-                return (
-                  <Rnd
-                    key={key}
-                    bounds="parent"
-                    dragGrid={[8, 8]}
-                    resizeGrid={[8, 8]}
-                    position={{ x: layouts[key]?.x ?? defaultX, y: layouts[key]?.y ?? defaultY }}
-                    size={{ width: layouts[key]?.width ?? 280, height: layouts[key]?.height ?? 280 }}
-                    onDragStop={(e, d) => updateLayout(key, { x: d.x, y: d.y })}
-                    onResizeStop={(e, dir, ref, delta, pos) => updateLayout(key, { width: ref.style.width, height: ref.style.height, ...pos })}
-                    className="group border border-dashed border-transparent hover:border-stone-400 cursor-move shadow-md rounded-xl overflow-hidden bg-stone-200"
-                  >
-                    <div className="w-full h-full relative pointer-events-none">
-                      <Image src={url} alt={`Gallery ${idx}`} fill className="object-cover" />
+                  <Rnd bounds="parent" dragGrid={[8, 8]} resizeGrid={[8, 8]} position={{ x: layouts.heroTitle?.x ?? 112, y: layouts.heroTitle?.y ?? 150 }} size={{ width: layouts.heroTitle?.width ?? 800, height: layouts.heroTitle?.height ?? 100 }} onDragStop={(e, d) => updateLayout('heroTitle', { x: d.x, y: d.y })} onResizeStop={(e, dir, ref, delta, pos) => updateLayout('heroTitle', { width: ref.style.width, height: ref.style.height, ...pos })} className="group border border-dashed border-transparent hover:border-white/50 cursor-move">
+                    <div className="w-full h-full flex items-center justify-center text-center drop-shadow-md">
+                      <h1 className="text-4xl md:text-6xl font-serif tracking-tight text-stone-50 pointer-events-none">{formData.heroTitle || 'Crafting Unforgettable Moments'}</h1>
                     </div>
                   </Rnd>
-                );
-              })}
 
-            </div>
+                  <Rnd bounds="parent" dragGrid={[8, 8]} resizeGrid={[8, 8]} position={{ x: layouts.heroSubtitle?.x ?? 212, y: layouts.heroSubtitle?.y ?? 270 }} size={{ width: layouts.heroSubtitle?.width ?? 600, height: layouts.heroSubtitle?.height ?? 80 }} onDragStop={(e, d) => updateLayout('heroSubtitle', { x: d.x, y: d.y })} onResizeStop={(e, dir, ref, delta, pos) => updateLayout('heroSubtitle', { width: ref.style.width, height: ref.style.height, ...pos })} className="group border border-dashed border-transparent hover:border-white/50 cursor-move">
+                    <div className="w-full h-full flex items-center justify-center text-center drop-shadow-md">
+                      <p className="text-lg md:text-2xl text-stone-200 font-light pointer-events-none">{formData.heroSubtitle || 'Exclusive event coordination for elegant weddings and private celebrations.'}</p>
+                    </div>
+                  </Rnd>
+
+                  <Rnd bounds="parent" dragGrid={[8, 8]} resizeGrid={[8, 8]} position={{ x: layouts.heroButton?.x ?? 412, y: layouts.heroButton?.y ?? 380 }} size={{ width: layouts.heroButton?.width ?? 200, height: layouts.heroButton?.height ?? 60 }} onDragStop={(e, d) => updateLayout('heroButton', { x: d.x, y: d.y })} onResizeStop={(e, dir, ref, delta, pos) => updateLayout('heroButton', { width: ref.style.width, height: ref.style.height, ...pos })} className="group border border-dashed border-transparent hover:border-white/50 cursor-move">
+                    <div className="w-full h-full flex items-center justify-center text-center">
+                      <div className="inline-flex items-center gap-2 bg-stone-50 text-stone-950 px-8 py-4 text-lg font-medium pointer-events-none">Inquire About Your Event <ChevronRight className="w-5 h-5" /></div>
+                    </div>
+                  </Rnd>
+
+                  <Rnd bounds="parent" dragGrid={[8, 8]} resizeGrid={[8, 8]} position={{ x: layouts.service1?.x ?? 62, y: layouts.service1?.y ?? 650 }} size={{ width: layouts.service1?.width ?? 280, height: layouts.service1?.height ?? 250 }} onDragStop={(e, d) => updateLayout('service1', { x: d.x, y: d.y })} onResizeStop={(e, dir, ref, delta, pos) => updateLayout('service1', { width: ref.style.width, height: ref.style.height, ...pos })} className="group border border-dashed border-transparent hover:border-stone-400 cursor-move bg-white/80 backdrop-blur-sm shadow-sm rounded-xl p-6 flex flex-col items-center text-center">
+                    <div className="w-full h-full flex flex-col items-center pointer-events-none">
+                      <div className="w-16 h-16 bg-stone-100 flex items-center justify-center rounded-full mb-4"><Briefcase className="w-8 h-8 text-stone-900" /></div>
+                      <h3 className="text-xl font-medium mb-3 text-stone-900">Corporate Events</h3>
+                      <p className="text-stone-600 text-sm leading-relaxed overflow-hidden">{formData.service1Desc || 'Professional and seamless coordination for galas and retreats.'}</p>
+                    </div>
+                  </Rnd>
+
+                  <Rnd bounds="parent" dragGrid={[8, 8]} resizeGrid={[8, 8]} position={{ x: layouts.service2?.x ?? 372, y: layouts.service2?.y ?? 650 }} size={{ width: layouts.service2?.width ?? 280, height: layouts.service2?.height ?? 250 }} onDragStop={(e, d) => updateLayout('service2', { x: d.x, y: d.y })} onResizeStop={(e, dir, ref, delta, pos) => updateLayout('service2', { width: ref.style.width, height: ref.style.height, ...pos })} className="group border border-dashed border-transparent hover:border-stone-400 cursor-move bg-white/80 backdrop-blur-sm shadow-sm rounded-xl p-6 flex flex-col items-center text-center">
+                    <div className="w-full h-full flex flex-col items-center pointer-events-none">
+                      <div className="w-16 h-16 bg-stone-100 flex items-center justify-center rounded-full mb-4"><CalendarDays className="w-8 h-8 text-stone-900" /></div>
+                      <h3 className="text-xl font-medium mb-3 text-stone-900">Weddings</h3>
+                      <p className="text-stone-600 text-sm leading-relaxed overflow-hidden">{formData.service2Desc || 'Bespoke wedding planning ensuring perfectly executed details.'}</p>
+                    </div>
+                  </Rnd>
+
+                  <Rnd bounds="parent" dragGrid={[8, 8]} resizeGrid={[8, 8]} position={{ x: layouts.service3?.x ?? 682, y: layouts.service3?.y ?? 650 }} size={{ width: layouts.service3?.width ?? 280, height: layouts.service3?.height ?? 250 }} onDragStop={(e, d) => updateLayout('service3', { x: d.x, y: d.y })} onResizeStop={(e, dir, ref, delta, pos) => updateLayout('service3', { width: ref.style.width, height: ref.style.height, ...pos })} className="group border border-dashed border-transparent hover:border-stone-400 cursor-move bg-white/80 backdrop-blur-sm shadow-sm rounded-xl p-6 flex flex-col items-center text-center">
+                    <div className="w-full h-full flex flex-col items-center pointer-events-none">
+                      <div className="w-16 h-16 bg-stone-100 flex items-center justify-center rounded-full mb-4"><Wine className="w-8 h-8 text-stone-900" /></div>
+                      <h3 className="text-xl font-medium mb-3 text-stone-900">Private Parties</h3>
+                      <p className="text-stone-600 text-sm leading-relaxed overflow-hidden">{formData.service3Desc || 'Exclusive and intimate celebrations tailored to your unique style.'}</p>
+                    </div>
+                  </Rnd>
+                </div>
+
+                {/* MOCK EVENT GALLERY - Responsive Flow */}
+                <div className="w-full bg-white shadow-xl ring-1 ring-stone-900/5 py-16 px-6 text-center border-t border-stone-200">
+                  <h2 className="text-3xl font-serif mb-4 text-stone-800">Event Gallery</h2>
+                  <p className="text-stone-500 text-sm mb-8">This responsive section will automatically populate here based on the albums you create.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 opacity-40 pointer-events-none">
+                    {[1,2,3].map(i => <div key={i} className="aspect-[4/3] bg-stone-200 rounded-xl border border-stone-300"></div>)}
+                  </div>
+                </div>
+
+                {/* DESKTOP CANVAS 2 (Draggable Images) */}
+                <div className="relative bg-stone-50 shadow-2xl overflow-hidden ring-1 ring-stone-900/5 w-full h-[850px]">
+                  <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '8px 8px' }} />
+                  {galleryImages.map((url, idx) => {
+                    const key = getSafeKey(url);
+                    const defaultX = 62 + (idx % 3) * 310;
+                    const defaultY = 950 + Math.floor(idx / 3) * 310;
+                    const itemY = (layouts[key]?.y ?? defaultY) - 950;
+                    return (
+                      <Rnd
+                        key={key}
+                        bounds="parent"
+                        dragGrid={[8, 8]}
+                        resizeGrid={[8, 8]}
+                        position={{ x: layouts[key]?.x ?? defaultX, y: itemY }}
+                        size={{ width: layouts[key]?.width ?? 280, height: layouts[key]?.height ?? 280 }}
+                        onDragStop={(e, d) => updateLayout(key, { x: d.x, y: d.y + 950 })}
+                        onResizeStop={(e, dir, ref, delta, pos) => updateLayout(key, { width: ref.style.width, height: ref.style.height, x: pos.x, y: pos.y + 950 })}
+                        className="group border border-dashed border-transparent hover:border-stone-400 cursor-move shadow-md rounded-xl overflow-hidden bg-stone-200"
+                      >
+                        <div className="w-full h-full relative pointer-events-none">
+                          <Image src={url} alt={`Gallery ${idx}`} fill className="object-cover" />
+                        </div>
+                      </Rnd>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="w-[375px] bg-white shadow-2xl ring-1 ring-stone-900/5 overflow-hidden flex flex-col font-sans">
+                {/* Mobile Hero Preview */}
+                <div className="relative w-full h-[500px] flex flex-col items-center justify-center bg-stone-950 px-6 text-center">
+                  <div className="absolute inset-0 opacity-40 bg-cover bg-center" style={{ backgroundImage: `url(${heroBgImage || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069&auto=format&fit=crop'})` }}></div>
+                  <div className="relative z-10 flex flex-col items-center gap-6">
+                    <h1 className="text-3xl font-serif text-stone-50 drop-shadow-md">{formData.heroTitle || 'Crafting Unforgettable Moments'}</h1>
+                    <p className="text-sm text-stone-200 font-light">{formData.heroSubtitle || 'Exclusive event coordination for elegant weddings and private celebrations.'}</p>
+                    <div className="inline-flex items-center gap-2 bg-stone-50 text-stone-950 px-6 py-3 text-sm font-medium rounded-full shadow-lg">
+                      Inquire <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+                {/* Mobile Services Preview */}
+                <div className="py-12 px-6 bg-stone-100 space-y-4">
+                  <div className="bg-white shadow-sm rounded-xl p-6 flex flex-col items-center text-center">
+                    <div className="w-12 h-12 bg-stone-50 flex items-center justify-center rounded-full mb-3"><Briefcase className="w-6 h-6 text-stone-900" /></div>
+                    <h3 className="text-lg font-medium mb-2 text-stone-900">Corporate Events</h3>
+                    <p className="text-stone-600 text-xs leading-relaxed">{formData.service1Desc || 'Professional and seamless coordination for galas and retreats.'}</p>
+                  </div>
+                  <div className="bg-white shadow-sm rounded-xl p-6 flex flex-col items-center text-center">
+                    <div className="w-12 h-12 bg-stone-50 flex items-center justify-center rounded-full mb-3"><CalendarDays className="w-6 h-6 text-stone-900" /></div>
+                    <h3 className="text-lg font-medium mb-2 text-stone-900">Weddings</h3>
+                    <p className="text-stone-600 text-xs leading-relaxed">{formData.service2Desc || 'Bespoke wedding planning ensuring perfectly executed details.'}</p>
+                  </div>
+                  <div className="bg-white shadow-sm rounded-xl p-6 flex flex-col items-center text-center">
+                    <div className="w-12 h-12 bg-stone-50 flex items-center justify-center rounded-full mb-3"><Wine className="w-6 h-6 text-stone-900" /></div>
+                    <h3 className="text-lg font-medium mb-2 text-stone-900">Private Parties</h3>
+                    <p className="text-stone-600 text-xs leading-relaxed">{formData.service3Desc || 'Exclusive and intimate celebrations tailored to your unique style.'}</p>
+                  </div>
+                </div>
+                {/* Mock Event Gallery Preview */}
+                <div className="py-12 px-6 bg-stone-50 text-center border-t border-stone-200">
+                  <h2 className="text-2xl font-serif mb-4 text-stone-800">Event Gallery</h2>
+                  <div className="space-y-4 opacity-40 pointer-events-none">
+                    <div className="aspect-[4/3] bg-stone-200 rounded-xl border border-stone-300"></div>
+                  </div>
+                </div>
+                {/* Mobile Draggable Images Mock Preview */}
+                {galleryImages.length > 0 && (
+                  <div className="py-12 px-6 bg-stone-100 border-t border-stone-200">
+                    <h2 className="text-2xl font-serif mb-6 text-center text-stone-800">Inspiration</h2>
+                    <div className="grid grid-cols-2 gap-3 opacity-60 pointer-events-none">
+                      {galleryImages.map((url, idx) => (
+                        <div key={idx} className="aspect-square bg-stone-200 rounded-lg overflow-hidden relative shadow-sm">
+                          <Image src={url} alt="img" fill className="object-cover"/>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

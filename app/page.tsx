@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, FormEvent, useEffect } from "react";
-import { CalendarDays, Wine, Briefcase, ChevronRight } from "lucide-react";
+import { CalendarDays, Wine, Briefcase, ChevronRight, X, ChevronLeft } from "lucide-react";
 import { collection, addDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import Image from "next/image";
@@ -10,6 +10,8 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
   const [pageData, setPageData] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
     const fetchPageData = async () => {
@@ -71,7 +73,7 @@ export default function Home() {
     );
   }
 
-  const { heroTitle, heroSubtitle, service1Desc, service2Desc, service3Desc, galleryImages = [], layouts = {}, heroBgImage, instagramUrl, facebookUrl, tiktokUrl } = pageData;
+  const { heroTitle, heroSubtitle, service1Desc, service2Desc, service3Desc, galleryImages = [], events = [], layouts = {}, heroBgImage, instagramUrl, facebookUrl, tiktokUrl } = pageData;
 
   // Calculate dynamic top position for social icons based on hero button
   const heroButtonHeight = layouts.heroButton?.height ? parseFloat(layouts.heroButton.height.toString()) : 60; // Default to 60px if not set or 'auto'
@@ -80,9 +82,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-stone-50 font-sans text-stone-900 selection:bg-stone-200">
       
-      {/* Unified Builder Layout Canvas */}
-      <div className="w-full overflow-x-hidden bg-stone-100 border-b border-stone-200">
-        <div className="relative w-full max-w-[1024px] mx-auto h-[1800px] bg-white shadow-sm overflow-hidden">
+      {/* DESKTOP: Unified Builder Layout Canvas (Part 1: Hero & Services) */}
+      <div className="hidden lg:block w-full overflow-x-hidden bg-stone-100 border-b border-stone-200">
+        <div className="relative w-full max-w-[1024px] mx-auto h-[950px] bg-white shadow-sm overflow-hidden">
           
           {/* Hero Background Block */}
           <div className="absolute top-0 left-0 w-full h-[600px] bg-stone-950 pointer-events-none" >
@@ -98,11 +100,11 @@ export default function Home() {
 
           <div style={{ position: 'absolute', left: layouts.heroSubtitle?.x ?? 212, top: layouts.heroSubtitle?.y ?? 270, width: layouts.heroSubtitle?.width ?? 600, height: layouts.heroSubtitle?.height ?? 80 }} className="flex items-center justify-center text-center drop-shadow-md z-10">
             <p className="text-lg md:text-2xl text-stone-200 font-light w-full h-full">
-              {heroSubtitle || 'Exclusive event coordination for elegant weddings and private celebrations.'}
+              {heroSubtitle || 'Exclusive event coordination for elegant weddings and private celebrations. - Roni\'s Event Planning LLC'}
             </p>
           </div>
 
-          <div style={{ position: 'absolute', left: layouts.heroButton?.x ?? 412, top: layouts.heroButton?.y ?? 380, width: layouts.heroButton?.width ?? 'auto', height: layouts.heroButton?.height ?? 'auto' }} className="flex items-center justify-center text-center z-10">
+          <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: layouts.heroButton?.y ?? 380, width: layouts.heroButton?.width ?? 'auto', height: layouts.heroButton?.height ?? 'auto' }} className="flex items-center justify-center text-center z-10">
             <a href="#contact" className="inline-flex items-center gap-2 bg-stone-50 text-stone-950 px-8 py-4 text-lg font-medium rounded-full shadow-lg hover:bg-stone-100 hover:shadow-xl transition-all duration-300">
               Inquire About Your Event
               <ChevronRight className="w-5 h-5" />
@@ -110,7 +112,7 @@ export default function Home() {
           </div>
 
           {/* Social Media Icons on the Front Page */}
-          <div className="absolute w-full flex justify-center gap-6 z-10" style={{ top: socialIconsTop, left: 0 }}>
+          <div className="absolute flex justify-center gap-6 z-10" style={{ top: socialIconsTop, left: '50%', transform: 'translateX(-50%)' }}>
             {instagramUrl && (
               <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="hover:text-stone-300 transition-colors text-stone-50">
                 <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -168,30 +170,146 @@ export default function Home() {
               {service3Desc || 'Exclusive and intimate celebrations tailored to your unique style.'}
             </p>
           </div>
-
-          {galleryImages.map((url: string, idx: number) => {
-            const key = getSafeKey(url);
-            const defaultX = 62 + (idx % 3) * 310;
-            const defaultY = 950 + Math.floor(idx / 3) * 310;
-            return (
-              <div
-                key={key}
-                style={{
-                  position: 'absolute',
-                  left: layouts[key]?.x ?? defaultX,
-                  top: layouts[key]?.y ?? defaultY,
-                  width: layouts[key]?.width ?? 280,
-                  height: layouts[key]?.height ?? 280,
-                }}
-                className="shadow-md rounded-xl overflow-hidden bg-stone-200 z-10"
-              >
-                <Image src={url} alt={`Gallery ${idx}`} fill className="object-cover" />
-              </div>
-            );
-          })}
-
         </div>
       </div>
+
+      {/* MOBILE: Native Flow Layout (Replaces absolute canvas to fit perfectly on any screen) */}
+      <div className="block lg:hidden w-full bg-white font-sans border-b border-stone-200">
+        {/* Mobile Hero */}
+        <div className="relative w-full min-h-[600px] flex flex-col items-center justify-center bg-stone-950 py-20 px-6 overflow-hidden">
+          <div className="absolute inset-0 opacity-40 bg-cover bg-center" style={{ backgroundImage: `url(${heroBgImage || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069&auto=format&fit=crop'})` }}></div>
+          <div className="relative z-10 flex flex-col items-center text-center gap-8 w-full max-w-lg mx-auto mt-12">
+            <h1 className="text-4xl md:text-5xl font-serif tracking-tight text-stone-50 drop-shadow-md">
+              {heroTitle || 'Crafting Unforgettable Moments'}
+            </h1>
+            <p className="text-lg text-stone-200 font-light">
+              {heroSubtitle || 'Exclusive event coordination for elegant weddings and private celebrations.'}
+            </p>
+            <a href="#contact" className="inline-flex items-center gap-2 bg-stone-50 text-stone-950 px-8 py-4 text-lg font-medium rounded-full shadow-lg hover:bg-stone-100 transition-all duration-300">
+              Inquire About Your Event
+              <ChevronRight className="w-5 h-5" />
+            </a>
+            
+            {/* Mobile Social Links */}
+            <div className="flex justify-center gap-6 mt-4">
+              {instagramUrl && (
+                <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="hover:text-stone-300 text-stone-50 transition-colors">
+                  <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"></line></svg>
+                </a>
+              )}
+              {facebookUrl && (
+                <a href={facebookUrl} target="_blank" rel="noopener noreferrer" className="hover:text-stone-300 text-stone-50 transition-colors">
+                  <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" /></svg>
+                </a>
+              )}
+              {tiktokUrl && (
+                <a href={tiktokUrl} target="_blank" rel="noopener noreferrer" className="hover:text-stone-300 text-stone-50 transition-colors">
+                  <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Mobile Services */}
+        <div className="py-20 px-6 bg-stone-100 space-y-8">
+          <div className="bg-white shadow-sm rounded-2xl p-8 flex flex-col items-center text-center max-w-md mx-auto">
+            <div className="w-16 h-16 bg-stone-50 flex items-center justify-center rounded-full mb-6">
+              <Briefcase className="w-8 h-8 text-stone-900" />
+            </div>
+            <h3 className="text-2xl font-medium mb-4 text-stone-900">Corporate Events</h3>
+            <p className="text-stone-600 leading-relaxed">
+              {service1Desc || 'Professional and seamless coordination for galas and retreats.'}
+            </p>
+          </div>
+          <div className="bg-white shadow-sm rounded-2xl p-8 flex flex-col items-center text-center max-w-md mx-auto">
+            <div className="w-16 h-16 bg-stone-50 flex items-center justify-center rounded-full mb-6">
+              <CalendarDays className="w-8 h-8 text-stone-900" />
+            </div>
+            <h3 className="text-2xl font-medium mb-4 text-stone-900">Weddings</h3>
+            <p className="text-stone-600 leading-relaxed">
+              {service2Desc || 'Bespoke wedding planning ensuring perfectly executed details.'}
+            </p>
+          </div>
+          <div className="bg-white shadow-sm rounded-2xl p-8 flex flex-col items-center text-center max-w-md mx-auto">
+            <div className="w-16 h-16 bg-stone-50 flex items-center justify-center rounded-full mb-6">
+              <Wine className="w-8 h-8 text-stone-900" />
+            </div>
+            <h3 className="text-2xl font-medium mb-4 text-stone-900">Private Parties</h3>
+            <p className="text-stone-600 leading-relaxed">
+              {service3Desc || 'Exclusive and intimate celebrations tailored to your unique style.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Event Gallery Section */}
+      {events.length > 0 && (
+        <section id="gallery" className="py-24 px-6 max-w-6xl mx-auto border-b border-stone-200 bg-stone-50">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-serif mb-4">Event Gallery</h2>
+            <p className="text-stone-600">A glimpse into our beautifully coordinated events.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {events.map((event: any) => (
+              <div key={event.id} className="group cursor-pointer" onClick={() => { setSelectedEvent(event); setLightboxIndex(0); }}>
+                <div className="aspect-[4/3] relative rounded-2xl overflow-hidden mb-4 shadow-sm group-hover:shadow-md transition-all">
+                  {event.images && event.images.length > 0 ? (
+                    <Image src={event.images[0]} alt={event.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" />
+                  ) : (
+                    <div className="w-full h-full bg-stone-200 flex items-center justify-center text-stone-400">No photos</div>
+                  )}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
+                </div>
+                <h3 className="text-xl font-medium text-stone-900 text-center">{event.title}</h3>
+                <p className="text-stone-500 text-center text-sm mt-1">{event.images?.length || 0} photo{(event.images?.length || 0) !== 1 ? 's' : ''}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* DESKTOP: Unified Builder Layout Canvas (Part 2: Draggable Images) */}
+      {galleryImages.length > 0 && (
+        <div className="hidden lg:block w-full overflow-x-hidden bg-stone-100 border-b border-stone-200">
+          <div className="relative w-full max-w-[1024px] mx-auto h-[850px] bg-white shadow-sm overflow-hidden">
+            {galleryImages.map((url: string, idx: number) => {
+              const key = getSafeKey(url);
+              const defaultX = 62 + (idx % 3) * 310;
+              const defaultY = 950 + Math.floor(idx / 3) * 310;
+              const itemY = (layouts[key]?.y ?? defaultY) - 950;
+              return (
+                <div
+                  key={key}
+                  style={{
+                    position: 'absolute',
+                    left: layouts[key]?.x ?? defaultX,
+                    top: itemY,
+                    width: layouts[key]?.width ?? 280,
+                    height: layouts[key]?.height ?? 280,
+                  }}
+                  className="shadow-md rounded-xl overflow-hidden bg-stone-200 z-10"
+                >
+                  <Image src={url} alt={`Gallery ${idx}`} fill className="object-cover" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* MOBILE: Draggable Images mapped to a normal responsive grid */}
+      {galleryImages.length > 0 && (
+        <div className="block lg:hidden py-16 px-6 bg-stone-100 border-b border-stone-200">
+          <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto">
+            {galleryImages.map((url: string, idx: number) => (
+              <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden shadow-sm bg-stone-200">
+                <Image src={url} alt={`Gallery ${idx}`} fill className="object-cover" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Contact / Booking Section */}
       <section id="contact" className="py-24 px-6 max-w-3xl mx-auto">
@@ -258,8 +376,44 @@ export default function Home() {
             </a>
           )}
         </div>
-        <p>&copy; {new Date().getFullYear()} Elegant Events. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} Roni's Event Planning LLC. All rights reserved.</p>
       </footer>
+
+      {/* Lightbox Modal */}
+      {selectedEvent && selectedEvent.images && selectedEvent.images.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-sm">
+          <button onClick={() => setSelectedEvent(null)} className="absolute top-6 right-6 text-white/70 hover:text-white p-2 transition-colors">
+            <X className="w-8 h-8" />
+          </button>
+          
+          <div className="relative w-full max-w-5xl aspect-[4/3] md:aspect-video flex items-center justify-center p-4 md:p-12">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex((prev) => (prev - 1 + selectedEvent.images.length) % selectedEvent.images.length); }}
+              className="absolute left-4 md:left-8 text-white/70 hover:text-white p-2 bg-black/20 hover:bg-black/40 rounded-full transition-all z-10"
+            >
+              <ChevronLeft className="w-8 h-8" />
+            </button>
+            
+            <Image 
+              src={selectedEvent.images[lightboxIndex]} 
+              alt={`${selectedEvent.title} - Image ${lightboxIndex + 1}`}
+              fill
+              className="object-contain"
+            />
+
+            <button 
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex((prev) => (prev + 1) % selectedEvent.images.length); }}
+              className="absolute right-4 md:right-8 text-white/70 hover:text-white p-2 bg-black/20 hover:bg-black/40 rounded-full transition-all z-10"
+            >
+              <ChevronRight className="w-8 h-8" />
+            </button>
+          </div>
+          
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/70 text-sm font-medium tracking-widest bg-black/50 px-4 py-1.5 rounded-full">
+            {lightboxIndex + 1} / {selectedEvent.images.length}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
