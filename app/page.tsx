@@ -63,7 +63,9 @@ export default function Home() {
       }
 
       setSubmitMessage("Thank you! Your inquiry has been submitted.");
-      e.currentTarget.reset();
+      if (e.currentTarget) {
+        e.currentTarget.reset();
+      }
     } catch (error) {
       console.error("Error adding document: ", error);
       setSubmitMessage("An error occurred while submitting. Please try again.");
