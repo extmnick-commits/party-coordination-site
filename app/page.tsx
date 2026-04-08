@@ -48,6 +48,20 @@ export default function Home() {
 
     try {
       await addDoc(collection(db, "inquiries"), data);
+      
+      // If email notification is configured, write to the 'mail' collection
+      if (pageData.notificationEmail) {
+        await addDoc(collection(db, "mail"), {
+          to: pageData.notificationEmail,
+          message: {
+            subject: `New Event Inquiry from ${data.name}`,
+            text: `You have a new inquiry!\n\nName: ${data.name}\nEmail: ${data.email}\nDate: ${data.date}\nDetails: ${data.details}`,
+            html: `<p><strong>You have a new inquiry!</strong></p><p><strong>Name:</strong> ${data.name}</p><p><strong>Email:</strong> ${data.email}</p><p><strong>Date:</strong> ${data.date}</p><p><strong>Details:</strong><br/>${data.details}</p>`,
+          },
+          createdAt: new Date(),
+        });
+      }
+
       setSubmitMessage("Thank you! Your inquiry has been submitted.");
       e.currentTarget.reset();
     } catch (error) {

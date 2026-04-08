@@ -66,6 +66,7 @@ export default function AdminDashboard() {
     instagramUrl: '',
     facebookUrl: '',
     tiktokUrl: '',
+    notificationEmail: '',
   });
 
   const getSafeHeight = (val: any, fallback: number) => {
@@ -94,6 +95,7 @@ export default function AdminDashboard() {
             instagramUrl: data.instagramUrl || '',
             facebookUrl: data.facebookUrl || '',
             tiktokUrl: data.tiktokUrl || '',
+            notificationEmail: data.notificationEmail || '',
           });
           setGalleryImages(data.galleryImages || []);
           setHeroBgImage(data.heroBgImage || '');
@@ -296,6 +298,26 @@ export default function AdminDashboard() {
     setEvents(events.map(ev => ev.id === eventId ? { ...ev, images: ev.images.filter(img => img !== imageUrl) } : ev));
   };
 
+  const handleMoveEventImage = (eventId: string, imageIndex: number, direction: number) => {
+    setEvents(events.map(event => {
+      if (event.id === eventId) {
+        const newImages = [...event.images];
+        const targetIndex = imageIndex + direction;
+
+        if (targetIndex < 0 || targetIndex >= newImages.length) {
+          return event;
+        }
+
+        const temp = newImages[imageIndex];
+        newImages[imageIndex] = newImages[targetIndex];
+        newImages[targetIndex] = temp;
+        
+        return { ...event, images: newImages };
+      }
+      return event;
+    }));
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
     document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
@@ -443,7 +465,17 @@ export default function AdminDashboard() {
                             {event.images.map((img, imgIdx) => (
                               <div key={imgIdx} className="relative aspect-square bg-stone-200 rounded overflow-hidden group border border-stone-200">
                                 <Image src={img} alt="Event img" fill className="object-cover" />
-                                <button type="button" onClick={() => handleDeleteEventImage(event.id, img)} className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3 h-3"/></button>
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                  <button type="button" onClick={() => handleMoveEventImage(event.id, imgIdx, -1)} disabled={imgIdx === 0} className="p-1.5 bg-white/80 text-stone-800 rounded-full hover:bg-white transition-colors disabled:opacity-30" title="Move Left">
+                                    <ArrowLeft className="h-3 w-3" />
+                                  </button>
+                                  <button type="button" onClick={() => handleDeleteEventImage(event.id, img)} className="p-1.5 bg-red-600/80 text-white rounded-full hover:bg-red-600 transition-colors" title="Delete Image">
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                  <button type="button" onClick={() => handleMoveEventImage(event.id, imgIdx, 1)} disabled={imgIdx === event.images.length - 1} className="p-1.5 bg-white/80 text-stone-800 rounded-full hover:bg-white transition-colors disabled:opacity-30" title="Move Right">
+                                    <ArrowRight className="h-3 w-3" />
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -485,6 +517,22 @@ export default function AdminDashboard() {
                       value={formData.tiktokUrl}
                       onChange={handleInputChange}
                       placeholder="https://tiktok.com/@..."
+                      className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-400 focus:border-stone-400 bg-stone-50 text-stone-800"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-6 mt-6 border-t border-stone-100">
+                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Notification Settings</h3>
+                  <p className="text-xs text-stone-500 mb-2 leading-relaxed">Configure where to receive new form submissions. <br/><strong>Note:</strong> Sending emails requires the Firebase <em>Trigger Email</em> extension.</p>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Notification Email</label>
+                    <input
+                      type="email"
+                      name="notificationEmail"
+                      value={formData.notificationEmail}
+                      onChange={handleInputChange}
+                      placeholder="owner@example.com"
                       className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-400 focus:border-stone-400 bg-stone-50 text-stone-800"
                     />
                   </div>
