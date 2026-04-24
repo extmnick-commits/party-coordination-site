@@ -5,6 +5,7 @@ import { CalendarDays, Wine, Briefcase, ChevronRight, X, ChevronLeft } from "luc
 import { collection, addDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import Image from "next/image";
+import { sendInquiryEmail } from "./actions";
 
 interface LayoutPosition {
   x: number;
@@ -92,18 +93,14 @@ export default function Home() {
     try {
       await addDoc(collection(db, "inquiries"), data);
       
-      // If email notification is configured, write to the 'mail' collection
-      if (pageData?.notificationEmail) {
-        await addDoc(collection(db, "mail"), {
-          to: pageData.notificationEmail,
-          message: {
-            subject: `New Event Inquiry from ${data.name}`,
-            text: `You have a new inquiry!\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\nDate: ${data.date}\nDetails: ${data.details}`,
-            html: `<p><strong>You have a new inquiry!</strong></p><p><strong>Name:</strong> ${data.name}</p><p><strong>Email:</strong> ${data.email}</p><p><strong>Phone:</strong> ${data.phone}</p><p><strong>Date:</strong> ${data.date}</p><p><strong>Details:</strong><br/>${data.details}</p>`,
-          },
-          createdAt: new Date(),
-        });
-      }
+      // Send email notification via Resend Server Action
+      await sendInquiryEmail({
+        name: data.name as string | null,
+        email: data.email as string | null,
+        phone: data.phone as string | null,
+        date: data.date as string | null,
+        details: data.details as string | null,
+      });
 
       setSubmitMessage("Thank you! Your inquiry has been submitted.");
       if (e.currentTarget) {
