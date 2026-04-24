@@ -66,7 +66,6 @@ export default function AdminDashboard() {
     instagramUrl: '',
     facebookUrl: '',
     tiktokUrl: '',
-    notificationEmail: '',
   });
 
   const getSafeHeight = (val: any, fallback: number) => {
@@ -95,7 +94,6 @@ export default function AdminDashboard() {
             instagramUrl: data.instagramUrl || '',
             facebookUrl: data.facebookUrl || '',
             tiktokUrl: data.tiktokUrl || '',
-            notificationEmail: data.notificationEmail || '',
           });
           setGalleryImages(data.galleryImages || []);
           setHeroBgImage(data.heroBgImage || '');
@@ -517,22 +515,6 @@ export default function AdminDashboard() {
                       value={formData.tiktokUrl}
                       onChange={handleInputChange}
                       placeholder="https://tiktok.com/@..."
-                      className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-400 focus:border-stone-400 bg-stone-50 text-stone-800"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-6 mt-6 border-t border-stone-100">
-                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Notification Settings</h3>
-                  <p className="text-xs text-stone-500 mb-2 leading-relaxed">Configure where to receive new form submissions. <br/><strong>Note:</strong> Sending emails requires the Firebase <em>Trigger Email</em> extension.</p>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Notification Email</label>
-                    <input
-                      type="email"
-                      name="notificationEmail"
-                      value={formData.notificationEmail}
-                      onChange={handleInputChange}
-                      placeholder="owner@example.com"
                       className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-400 focus:border-stone-400 bg-stone-50 text-stone-800"
                     />
                   </div>

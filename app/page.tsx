@@ -46,7 +46,6 @@ interface PageData {
   instagramUrl?: string;
   facebookUrl?: string;
   tiktokUrl?: string;
-  notificationEmail?: string;
 }
 
 export default function Home() {
