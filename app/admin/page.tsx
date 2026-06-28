@@ -55,6 +55,7 @@ export default function AdminDashboard() {
   const [heroBgImage, setHeroBgImage] = useState<string>('');
   const [uploadingHero, setUploadingHero] = useState(false);
   const [layouts, setLayouts] = useState<Record<string, { x: number; y: number; width: number | string; height: number | string }>>({});
+  const [testimonials, setTestimonials] = useState<{ id: string; text: string; author: string; }[]>([]);
   const [events, setEvents] = useState<{ id: string; title: string; images: string[] }[]>([]);
   
   const [formData, setFormData] = useState({
@@ -98,6 +99,7 @@ export default function AdminDashboard() {
           setGalleryImages(data.galleryImages || []);
           setHeroBgImage(data.heroBgImage || '');
           setLayouts(data.layouts || {});
+          setTestimonials(data.testimonials || []);
           setEvents(data.events || []);
         }
       } catch (err) {
@@ -133,7 +135,7 @@ export default function AdminDashboard() {
     setSaving(true);
     try {
       const docRef = doc(db, 'content', 'home');
-      await updateDoc(docRef, { ...formData, layouts, heroBgImage, events });
+      await updateDoc(docRef, { ...formData, layouts, heroBgImage, events, testimonials });
       alert('Content published successfully!');
     } catch (err) {
       console.error('Error saving content:', err);
@@ -271,6 +273,27 @@ export default function AdminDashboard() {
 
   const handleEventTitleChange = (id: string, newTitle: string) => {
     setEvents(events.map(e => e.id === id ? { ...e, title: newTitle } : e));
+  };
+
+  const handleAddTestimonial = () => {
+    setTestimonials([...testimonials, { id: Date.now().toString(), text: '', author: '' }]);
+  };
+
+  const handleDeleteTestimonial = (id: string) => {
+    if (!confirm('Are you sure you want to delete this testimonial?')) return;
+    setTestimonials(testimonials.filter(t => t.id !== id));
+  };
+
+  const handleMoveTestimonial = (index: number, direction: number) => {
+    const newTestimonials = [...testimonials];
+    const temp = newTestimonials[index];
+    newTestimonials[index] = newTestimonials[index + direction];
+    newTestimonials[index + direction] = temp;
+    setTestimonials(newTestimonials);
+  };
+
+  const handleTestimonialChange = (id: string, field: 'text' | 'author', value: string) => {
+    setTestimonials(testimonials.map(t => t.id === id ? { ...t, [field]: value } : t));
   };
 
   const handleEventImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, eventId: string) => {
@@ -521,6 +544,44 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              <div className="space-y-4 pt-6 mt-6 border-t border-stone-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Testimonials</h3>
+                  <button type="button" onClick={handleAddTestimonial} className="flex items-center gap-1 text-xs bg-stone-200 hover:bg-stone-300 text-stone-800 px-3 py-1.5 rounded-md font-medium transition-colors">
+                    <Plus className="w-3 h-3"/> Add Testimonial
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  {testimonials.map((testimonial, index) => (
+                    <div key={testimonial.id} className="border border-stone-200 rounded-lg p-4 bg-stone-50 space-y-3 shadow-sm">
+                      <div className="flex gap-2 items-start">
+                        <div className="flex-1 space-y-2">
+                          <textarea 
+                            value={testimonial.text} 
+                            onChange={(e) => handleTestimonialChange(testimonial.id, 'text', e.target.value)}
+                            className="w-full px-3 py-1.5 text-sm border border-stone-300 rounded focus:ring-2 focus:ring-stone-400 bg-white"
+                            placeholder="Testimonial text..."
+                            rows={3}
+                          />
+                          <input 
+                            type="text" 
+                            value={testimonial.author} 
+                            onChange={(e) => handleTestimonialChange(testimonial.id, 'author', e.target.value)}
+                            className="w-full px-3 py-1.5 text-sm border border-stone-300 rounded focus:ring-2 focus:ring-stone-400 bg-white"
+                            placeholder="Author's Name"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <button type="button" onClick={() => handleMoveTestimonial(index, -1)} disabled={index === 0} className="p-1.5 bg-white border border-stone-200 rounded hover:bg-stone-100 disabled:opacity-50 transition-colors" title="Move Up"><ArrowUp className="w-4 h-4"/></button>
+                          <button type="button" onClick={() => handleMoveTestimonial(index, 1)} disabled={index === testimonials.length - 1} className="p-1.5 bg-white border border-stone-200 rounded hover:bg-stone-100 disabled:opacity-50 transition-colors" title="Move Down"><ArrowDown className="w-4 h-4"/></button>
+                          <button type="button" onClick={() => handleDeleteTestimonial(testimonial.id)} className="p-1.5 bg-red-50 text-red-600 border border-red-100 rounded hover:bg-red-100 transition-colors" title="Delete Testimonial"><Trash2 className="w-4 h-4"/></button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Gallery List inside Left Pane */}
               <div className="space-y-4 pt-6 border-t border-stone-100">
                 <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Inspiration Area (Draggable)</h3>
@@ -701,6 +762,26 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
+
+                {/* TESTIMONIALS PREVIEW */}
+                {testimonials.length > 0 && (
+                  <div className="w-full bg-white shadow-xl ring-1 ring-stone-900/5 py-16 px-6 text-center border-t border-stone-200">
+                    <h2 className="text-3xl font-serif mb-12 text-stone-800">What Our Clients Say</h2>
+                    <div className="space-y-12 max-w-3xl mx-auto pointer-events-none">
+                      {testimonials.map((testimonial: any) => (
+                        <div key={testimonial.id} className="flex flex-col items-center">
+                          <svg className="w-10 h-10 text-stone-300 mb-4" fill="currentColor" viewBox="0 0 32 32" aria-hidden="true">
+                            <path d="M9.996 5.004a5 5 0 0 0-5 5v12a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5v-5a5 5 0 0 0-5-5h-3l3-7h-4l-3 7zm12 0a5 5 0 0 0-5 5v12a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5v-5a5 5 0 0 0-5-5h-3l3-7h-4l-3 7z" />
+                          </svg>
+                          <blockquote className="text-xl font-light text-stone-700 leading-relaxed italic">
+                            "{testimonial.text}"
+                          </blockquote>
+                          <p className="mt-6 font-medium text-stone-900">— {testimonial.author}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="w-[375px] mx-auto shrink-0 bg-white shadow-2xl ring-1 ring-stone-900/5 overflow-hidden flex flex-col font-sans">
@@ -753,6 +834,25 @@ export default function AdminDashboard() {
                             )}
                           </div>
                           <h3 className="text-lg font-medium text-stone-900">{event.title}</h3>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Mobile Testimonials Preview */}
+                {testimonials.length > 0 && (
+                  <div className="py-12 px-6 bg-stone-50 border-t border-stone-200">
+                    <h2 className="text-2xl font-serif mb-6 text-center text-stone-800">What Our Clients Say</h2>
+                    <div className="space-y-8 pointer-events-none">
+                      {testimonials.map((testimonial: any) => (
+                        <div key={testimonial.id} className="text-center">
+                          <svg className="w-8 h-8 text-stone-300 mb-2 mx-auto" fill="currentColor" viewBox="0 0 32 32" aria-hidden="true">
+                            <path d="M9.996 5.004a5 5 0 0 0-5 5v12a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5v-5a5 5 0 0 0-5-5h-3l3-7h-4l-3 7zm12 0a5 5 0 0 0-5 5v12a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5v-5a5 5 0 0 0-5-5h-3l3-7h-4l-3 7z" />
+                          </svg>
+                          <blockquote className="text-base font-light text-stone-700 leading-relaxed italic">
+                            "{testimonial.text}"
+                          </blockquote>
+                          <p className="mt-4 font-medium text-stone-900 text-sm">— {testimonial.author}</p>
                         </div>
                       ))}
                     </div>

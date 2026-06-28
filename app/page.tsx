@@ -26,6 +26,12 @@ interface EventData {
   images: string[];
 }
 
+interface TestimonialData {
+  id: string;
+  text: string;
+  author: string;
+}
+
 interface PageData {
   heroTitle?: string;
   heroSubtitle?: string;
@@ -34,6 +40,7 @@ interface PageData {
   service3Desc?: string;
   galleryImages?: string[];
   events?: EventData[];
+  testimonials?: TestimonialData[];
   layouts?: {
     heroTitle?: LayoutPosition;
     heroSubtitle?: LayoutPosition;
@@ -121,7 +128,7 @@ export default function Home() {
     );
   }
 
-  const { heroTitle, heroSubtitle, service1Desc, service2Desc, service3Desc, galleryImages = [], events = [], layouts = {}, heroBgImage, instagramUrl, facebookUrl, tiktokUrl } = pageData;
+  const { heroTitle, heroSubtitle, service1Desc, service2Desc, service3Desc, galleryImages = [], events = [], testimonials = [], layouts = {}, heroBgImage, instagramUrl, facebookUrl, tiktokUrl } = pageData;
 
   // Calculate dynamic top position for social icons based on hero button
   const getSafeHeight = (val: any, fallback: number) => {
@@ -339,6 +346,28 @@ export default function Home() {
                   ) : (
                     <Image src={url} alt={`Inspiration ${idx}`} fill className="object-cover pointer-events-none" draggable={false} />
                   )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Testimonials Section */}
+      {testimonials.length > 0 && (
+        <section id="testimonials" className="py-24 px-6 bg-stone-50 border-b border-stone-200">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-4xl font-serif mb-12">What Our Clients Say</h2>
+            <div className="space-y-16">
+              {testimonials.map((testimonial) => (
+                <div key={testimonial.id} className="flex flex-col items-center">
+                  <svg className="w-12 h-12 text-stone-300 mb-6" fill="currentColor" viewBox="0 0 32 32" aria-hidden="true">
+                    <path d="M9.996 5.004a5 5 0 0 0-5 5v12a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5v-5a5 5 0 0 0-5-5h-3l3-7h-4l-3 7zm12 0a5 5 0 0 0-5 5v12a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5v-5a5 5 0 0 0-5-5h-3l3-7h-4l-3 7z" />
+                  </svg>
+                  <blockquote className="text-2xl font-light text-stone-700 leading-relaxed italic max-w-3xl">
+                    "{testimonial.text}"
+                  </blockquote>
+                  <p className="mt-6 font-medium text-stone-900 tracking-wider">— {testimonial.author}</p>
                 </div>
               ))}
             </div>
