@@ -542,84 +542,84 @@ export default function AdminDashboard() {
                     />
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-4 pt-6 mt-6 border-t border-stone-100">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Testimonials</h3>
-                  <button type="button" onClick={handleAddTestimonial} className="flex items-center gap-1 text-xs bg-stone-200 hover:bg-stone-300 text-stone-800 px-3 py-1.5 rounded-md font-medium transition-colors">
-                    <Plus className="w-3 h-3"/> Add Testimonial
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  {testimonials.map((testimonial, index) => (
-                    <div key={testimonial.id} className="border border-stone-200 rounded-lg p-4 bg-stone-50 space-y-3 shadow-sm">
-                      <div className="flex gap-2 items-start">
-                        <div className="flex-1 space-y-2">
-                          <textarea 
-                            value={testimonial.text} 
-                            onChange={(e) => handleTestimonialChange(testimonial.id, 'text', e.target.value)}
-                            className="w-full px-3 py-1.5 text-sm border border-stone-300 rounded focus:ring-2 focus:ring-stone-400 bg-white"
-                            placeholder="Testimonial text..."
-                            rows={3}
-                          />
-                          <input 
-                            type="text" 
-                            value={testimonial.author} 
-                            onChange={(e) => handleTestimonialChange(testimonial.id, 'author', e.target.value)}
-                            className="w-full px-3 py-1.5 text-sm border border-stone-300 rounded focus:ring-2 focus:ring-stone-400 bg-white"
-                            placeholder="Author's Name"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <button type="button" onClick={() => handleMoveTestimonial(index, -1)} disabled={index === 0} className="p-1.5 bg-white border border-stone-200 rounded hover:bg-stone-100 disabled:opacity-50 transition-colors" title="Move Up"><ArrowUp className="w-4 h-4"/></button>
-                          <button type="button" onClick={() => handleMoveTestimonial(index, 1)} disabled={index === testimonials.length - 1} className="p-1.5 bg-white border border-stone-200 rounded hover:bg-stone-100 disabled:opacity-50 transition-colors" title="Move Down"><ArrowDown className="w-4 h-4"/></button>
-                          <button type="button" onClick={() => handleDeleteTestimonial(testimonial.id)} className="p-1.5 bg-red-50 text-red-600 border border-red-100 rounded hover:bg-red-100 transition-colors" title="Delete Testimonial"><Trash2 className="w-4 h-4"/></button>
+                <div className="space-y-4 pt-6 mt-6 border-t border-stone-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Testimonials</h3>
+                    <button type="button" onClick={handleAddTestimonial} className="flex items-center gap-1 text-xs bg-stone-200 hover:bg-stone-300 text-stone-800 px-3 py-1.5 rounded-md font-medium transition-colors">
+                      <Plus className="w-3 h-3"/> Add Testimonial
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {testimonials.map((testimonial, index) => (
+                      <div key={testimonial.id} className="border border-stone-200 rounded-lg p-4 bg-stone-50 space-y-3 shadow-sm">
+                        <div className="flex gap-2 items-start">
+                          <div className="flex-1 space-y-2">
+                            <textarea 
+                              value={testimonial.text} 
+                              onChange={(e) => handleTestimonialChange(testimonial.id, 'text', e.target.value)}
+                              className="w-full px-3 py-1.5 text-sm border border-stone-300 rounded focus:ring-2 focus:ring-stone-400 bg-white"
+                              placeholder="Testimonial text..."
+                              rows={3}
+                            />
+                            <input 
+                              type="text" 
+                              value={testimonial.author} 
+                              onChange={(e) => handleTestimonialChange(testimonial.id, 'author', e.target.value)}
+                              className="w-full px-3 py-1.5 text-sm border border-stone-300 rounded focus:ring-2 focus:ring-stone-400 bg-white"
+                              placeholder="Author's Name"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <button type="button" onClick={() => handleMoveTestimonial(index, -1)} disabled={index === 0} className="p-1.5 bg-white border border-stone-200 rounded hover:bg-stone-100 disabled:opacity-50 transition-colors" title="Move Up"><ArrowUp className="w-4 h-4"/></button>
+                            <button type="button" onClick={() => handleMoveTestimonial(index, 1)} disabled={index === testimonials.length - 1} className="p-1.5 bg-white border border-stone-200 rounded hover:bg-stone-100 disabled:opacity-50 transition-colors" title="Move Down"><ArrowDown className="w-4 h-4"/></button>
+                            <button type="button" onClick={() => handleDeleteTestimonial(testimonial.id)} className="p-1.5 bg-red-50 text-red-600 border border-red-100 rounded hover:bg-red-100 transition-colors" title="Delete Testimonial"><Trash2 className="w-4 h-4"/></button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Gallery List inside Left Pane */}
-              <div className="space-y-4 pt-6 border-t border-stone-100">
-                <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Inspiration Area (Draggable)</h3>
-                <label className="cursor-pointer flex items-center justify-center p-3 bg-stone-50 border-2 border-dashed border-stone-300 text-stone-700 hover:bg-stone-100 rounded-lg transition-colors">
-                  {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                  <span className="ml-2 font-medium text-sm">Upload Media (Photo/Video)</span>
-                  <input type="file" accept="image/*,video/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-                </label>
-                
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  {galleryImages.map((url, idx) => (
-                    <div key={idx} className="relative aspect-square bg-stone-100 rounded-lg overflow-hidden group">
-                      {isVideo(url) ? (
-                        <video src={url} autoPlay loop muted playsInline className="object-cover w-full h-full" />
-                      ) : (
-                        <Image src={url} alt="Gallery" fill className="object-cover" />
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleMoveGalleryImage(idx, -1)}
-                          disabled={idx === 0}
-                          className="p-1.5 bg-white text-stone-800 rounded-full hover:bg-stone-200 transition-colors disabled:opacity-50"
-                        ><ArrowLeft className="h-4 w-4" /></button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteImage(url)}
-                          className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
-                        ><Trash2 className="h-4 w-4" /></button>
-                        <button
-                          type="button"
-                          onClick={() => handleMoveGalleryImage(idx, 1)}
-                          disabled={idx === galleryImages.length - 1}
-                          className="p-1.5 bg-white text-stone-800 rounded-full hover:bg-stone-200 transition-colors disabled:opacity-50"
-                        ><ArrowRight className="h-4 w-4" /></button>
+                {/* Gallery List inside Left Pane */}
+                <div className="space-y-4 pt-6 border-t border-stone-100">
+                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Inspiration Area (Draggable)</h3>
+                  <label className="cursor-pointer flex items-center justify-center p-3 bg-stone-50 border-2 border-dashed border-stone-300 text-stone-700 hover:bg-stone-100 rounded-lg transition-colors">
+                    {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                    <span className="ml-2 font-medium text-sm">Upload Media (Photo/Video)</span>
+                    <input type="file" accept="image/*,video/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+                  </label>
+                  
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    {galleryImages.map((url, idx) => (
+                      <div key={idx} className="relative aspect-square bg-stone-100 rounded-lg overflow-hidden group">
+                        {isVideo(url) ? (
+                          <video src={url} autoPlay loop muted playsInline className="object-cover w-full h-full" />
+                        ) : (
+                          <Image src={url} alt="Gallery" fill className="object-cover" />
+                        )}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveGalleryImage(idx, -1)}
+                            disabled={idx === 0}
+                            className="p-1.5 bg-white text-stone-800 rounded-full hover:bg-stone-200 transition-colors disabled:opacity-50"
+                          ><ArrowLeft className="h-4 w-4" /></button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteImage(url)}
+                            className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+                          ><Trash2 className="h-4 w-4" /></button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveGalleryImage(idx, 1)}
+                            disabled={idx === galleryImages.length - 1}
+                            className="p-1.5 bg-white text-stone-800 rounded-full hover:bg-stone-200 transition-colors disabled:opacity-50"
+                          ><ArrowRight className="h-4 w-4" /></button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
