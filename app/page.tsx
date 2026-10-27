@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, FormEvent, useEffect } from "react";
-import { CalendarDays, Wine, Briefcase, ChevronRight, X, ChevronLeft } from "lucide-react";
+import { CalendarDays, Wine, Briefcase, ChevronRight } from "lucide-react";
 import { collection, addDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import Image from "next/image";
 import { sendInquiryEmail } from "./actions";
+import PhotoViewer from "./PhotoViewer";
 
 interface LayoutPosition {
   x: number;
@@ -315,7 +316,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {events.map((event) => (
-              <div key={event.id} className="group cursor-pointer" onClick={() => { setSelectedEvent(event); setLightboxIndex(0); }}>
+              <button key={event.id} type="button" disabled={!event.images?.length} className="group text-left disabled:cursor-default focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-stone-900" onClick={() => { setSelectedEvent(event); setLightboxIndex(0); }}>
                 <div className="aspect-[4/3] relative rounded-2xl overflow-hidden mb-4 shadow-sm group-hover:shadow-md transition-all">
                   {event.images && event.images.length > 0 ? (
                     <Image src={event.images[0]} alt={event.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" />
@@ -326,7 +327,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-medium text-stone-900 text-center">{event.title}</h3>
                 <p className="text-stone-500 text-center text-sm mt-1">{event.images?.length || 0} photo{(event.images?.length || 0) !== 1 ? 's' : ''}</p>
-              </div>
+              </button>
             ))}
           </div>
         </section>
@@ -484,42 +485,8 @@ export default function Home() {
         <p>&copy; {new Date().getFullYear()} Roni's Event Planning LLC. All rights reserved.</p>
       </footer>
 
-      {/* Lightbox Modal */}
-      {selectedEvent && selectedEvent.images && selectedEvent.images.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-sm">
-          <button aria-label="Close photo viewer" onClick={() => setSelectedEvent(null)} className="absolute top-6 right-6 text-white/70 hover:text-white p-2 transition-colors z-10">
-            <X className="w-8 h-8" />
-          </button>
-          
-          <div className="relative w-full max-w-5xl aspect-[4/3] md:aspect-video flex items-center justify-center p-4 md:p-12">
-            <button 
-              aria-label="Previous photo"
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex((prev) => (prev - 1 + selectedEvent.images.length) % selectedEvent.images.length); }}
-              className="absolute left-4 md:left-8 text-white/70 hover:text-white p-2 bg-black/20 hover:bg-black/40 rounded-full transition-all z-10"
-            >
-              <ChevronLeft className="w-8 h-8" />
-            </button>
-            
-            <Image 
-              src={selectedEvent.images[lightboxIndex]} 
-              alt={`${selectedEvent.title} - Image ${lightboxIndex + 1}`}
-              fill
-              className="object-contain"
-            />
-
-            <button 
-              aria-label="Next photo"
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex((prev) => (prev + 1) % selectedEvent.images.length); }}
-              className="absolute right-4 md:right-8 text-white/70 hover:text-white p-2 bg-black/20 hover:bg-black/40 rounded-full transition-all z-10"
-            >
-              <ChevronRight className="w-8 h-8" />
-            </button>
-          </div>
-          
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/70 text-sm font-medium tracking-widest bg-black/50 px-4 py-1.5 rounded-full">
-            {lightboxIndex + 1} / {selectedEvent.images.length}
-          </div>
-        </div>
+      {selectedEvent && selectedEvent.images?.length > 0 && (
+        <PhotoViewer title={selectedEvent.title} images={selectedEvent.images} index={lightboxIndex} onIndexChange={setLightboxIndex} onClose={() => setSelectedEvent(null)} />
       )}
     </div>
   );
