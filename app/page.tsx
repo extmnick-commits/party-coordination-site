@@ -53,6 +53,8 @@ interface PageData {
   instagramUrl?: string;
   facebookUrl?: string;
   tiktokUrl?: string;
+  recentEventVideo?: string;
+  recentEventPhotos?: string[];
 }
 
 export default function Home() {
@@ -128,7 +130,7 @@ export default function Home() {
     );
   }
 
-  const { heroTitle, heroSubtitle, service1Desc, service2Desc, service3Desc, galleryImages = [], events = [], testimonials = [], layouts = {}, heroBgImage, instagramUrl, facebookUrl, tiktokUrl } = pageData;
+  const { heroTitle, heroSubtitle, service1Desc, service2Desc, service3Desc, galleryImages = [], events = [], testimonials = [], layouts = {}, heroBgImage, instagramUrl, facebookUrl, tiktokUrl, recentEventVideo, recentEventPhotos = [] } = pageData;
 
   // Calculate dynamic top position for social icons based on hero button
   const getSafeHeight = (val: any, fallback: number) => {
@@ -353,7 +355,42 @@ export default function Home() {
         </section>
       )}
 
-      {/* Testimonials Section */}
+      {(recentEventVideo || recentEventPhotos.length > 0) && (
+      <section id="recent-event" className="py-24 px-6 bg-stone-100 border-b border-stone-200">
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-2xl mx-auto text-center mb-12">
+            <p className="text-xs uppercase tracking-[0.25em] text-stone-500 mb-4">A closer look</p>
+            <h2 className="text-4xl font-serif mb-4">Moments from Our Events</h2>
+            <p className="text-stone-600 leading-relaxed">A collection of details, celebrations, and memories brought to life by Roni&apos;s Event Planning.</p>
+          </div>
+          <div className="grid lg:grid-cols-[1fr_2fr] gap-6 items-start">
+            {recentEventVideo && (
+            <div className="relative aspect-[3/4] w-full max-h-[600px] rounded-2xl overflow-hidden bg-stone-900 shadow-sm">
+              <video
+                src={recentEventVideo}
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="auto"
+                className="object-cover w-full h-full pointer-events-none"
+                aria-label="Event video"
+              />
+            </div>
+            )}
+            {recentEventPhotos.length > 0 && (
+            <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4 ${recentEventVideo ? "" : "lg:col-span-2"}`}>
+              {recentEventPhotos.map((photo, index) => (
+                <button key={photo} type="button" onClick={() => { setSelectedEvent({ id: "recent-event", title: "Event moments", images: recentEventPhotos }); setLightboxIndex(index); }} aria-label={`View event photo ${index + 1}`} className="relative aspect-square rounded-xl overflow-hidden bg-stone-200 shadow-sm group focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900">
+                  <Image src={photo} alt={`Event decor and celebration, photo ${index + 1}`} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 240px" className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                </button>
+              ))}
+            </div>
+            )}
+          </div>
+        </div>
+      </section>
+      )}
       {testimonials.length > 0 && (
         <section id="testimonials" className="py-24 px-6 bg-stone-50 border-b border-stone-200">
           <div className="max-w-4xl mx-auto text-center">
@@ -450,12 +487,13 @@ export default function Home() {
       {/* Lightbox Modal */}
       {selectedEvent && selectedEvent.images && selectedEvent.images.length > 0 && (
         <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-sm">
-          <button onClick={() => setSelectedEvent(null)} className="absolute top-6 right-6 text-white/70 hover:text-white p-2 transition-colors">
+          <button aria-label="Close photo viewer" onClick={() => setSelectedEvent(null)} className="absolute top-6 right-6 text-white/70 hover:text-white p-2 transition-colors z-10">
             <X className="w-8 h-8" />
           </button>
           
           <div className="relative w-full max-w-5xl aspect-[4/3] md:aspect-video flex items-center justify-center p-4 md:p-12">
             <button 
+              aria-label="Previous photo"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex((prev) => (prev - 1 + selectedEvent.images.length) % selectedEvent.images.length); }}
               className="absolute left-4 md:left-8 text-white/70 hover:text-white p-2 bg-black/20 hover:bg-black/40 rounded-full transition-all z-10"
             >
@@ -470,6 +508,7 @@ export default function Home() {
             />
 
             <button 
+              aria-label="Next photo"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex((prev) => (prev + 1) % selectedEvent.images.length); }}
               className="absolute right-4 md:right-8 text-white/70 hover:text-white p-2 bg-black/20 hover:bg-black/40 rounded-full transition-all z-10"
             >

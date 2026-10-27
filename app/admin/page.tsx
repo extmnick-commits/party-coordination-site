@@ -57,6 +57,9 @@ export default function AdminDashboard() {
   const [layouts, setLayouts] = useState<Record<string, { x: number; y: number; width: number | string; height: number | string }>>({});
   const [testimonials, setTestimonials] = useState<{ id: string; text: string; author: string; }[]>([]);
   const [events, setEvents] = useState<{ id: string; title: string; images: string[] }[]>([]);
+  const [recentEventVideo, setRecentEventVideo] = useState('');
+  const [recentEventPhotos, setRecentEventPhotos] = useState<string[]>([]);
+  const [importingRecentEvent, setImportingRecentEvent] = useState(false);
   
   const [formData, setFormData] = useState({
     heroTitle: '',
@@ -101,6 +104,8 @@ export default function AdminDashboard() {
           setLayouts(data.layouts || {});
           setTestimonials(data.testimonials || []);
           setEvents(data.events || []);
+          setRecentEventVideo(data.recentEventVideo || '');
+          setRecentEventPhotos(data.recentEventPhotos || []);
         }
       } catch (err) {
         console.error('Error fetching admin content:', err);
@@ -135,7 +140,7 @@ export default function AdminDashboard() {
     setSaving(true);
     try {
       const docRef = doc(db, 'content', 'home');
-      await updateDoc(docRef, { ...formData, layouts, heroBgImage, events, testimonials });
+      await updateDoc(docRef, { ...formData, layouts, heroBgImage, events, testimonials, recentEventVideo, recentEventPhotos });
       alert('Content published successfully!');
     } catch (err) {
       console.error('Error saving content:', err);
@@ -317,6 +322,121 @@ export default function AdminDashboard() {
   const handleDeleteEventImage = (eventId: string, imageUrl: string) => {
     if (!confirm('Are you sure you want to remove this photo from the event?')) return;
     setEvents(events.map(ev => ev.id === eventId ? { ...ev, images: ev.images.filter(img => img !== imageUrl) } : ev));
+  };
+
+  const handleRecentEventVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !auth.currentUser) return;
+
+    if (!file.type.startsWith('video/')) {
+      alert('Please upload a video file.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Video size must be less than 50MB.');
+      e.target.value = '';
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `recent-event/event-video.mp4`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      setRecentEventVideo(downloadURL);
+    } catch (err) {
+      console.error('Error uploading recent event video:', err);
+      alert('Failed to upload event video.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRecentEventPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !auth.currentUser) return;
+
+    setUploading(true);
+    try {
+      let uploadFile = file;
+      if (file.type.startsWith('image/')) {
+        uploadFile = await compressImage(file);
+      }
+      const storageRef = ref(storage, `recent-event/${Date.now()}_${uploadFile.name}`);
+      const snapshot = await uploadBytes(storageRef, uploadFile);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      setRecentEventPhotos((prev) => [...prev, downloadURL]);
+    } catch (err) {
+      console.error('Error uploading recent event photo:', err);
+      alert('Failed to upload photo.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteRecentEventPhoto = (url: string) => {
+    if (!confirm('Remove this photo from Moments from Our Events?')) return;
+    setRecentEventPhotos((prev) => prev.filter((img) => img !== url));
+  };
+
+  const handleMoveRecentEventPhoto = (index: number, direction: number) => {
+    const newPhotos = [...recentEventPhotos];
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= newPhotos.length) return;
+    const temp = newPhotos[index];
+    newPhotos[index] = newPhotos[targetIndex];
+    newPhotos[targetIndex] = temp;
+    setRecentEventPhotos(newPhotos);
+  };
+
+  const handleClearRecentEventVideo = () => {
+    if (!confirm('Remove the event highlight video?')) return;
+    setRecentEventVideo('');
+  };
+
+  const handleImportBundledRecentEvent = async () => {
+    if (!auth.currentUser) {
+      alert('User is not authenticated. Please log in.');
+      return;
+    }
+    if (!confirm('Upload the bundled public/recent-event files to Firebase? This may take a minute.')) return;
+
+    setImportingRecentEvent(true);
+    try {
+      const videoRes = await fetch('/recent-event/event-video.mp4');
+      if (!videoRes.ok) throw new Error('Could not load event-video.mp4 from the site bundle.');
+      const videoBlob = await videoRes.blob();
+      const videoFile = new File([videoBlob], 'event-video.mp4', { type: videoBlob.type || 'video/mp4' });
+      const videoRef = ref(storage, 'recent-event/event-video.mp4');
+      const videoSnapshot = await uploadBytes(videoRef, videoFile);
+      const videoUrl = await getDownloadURL(videoSnapshot.ref);
+
+      const photoUrls: string[] = [];
+      for (let i = 1; i <= 13; i++) {
+        const photoRes = await fetch(`/recent-event/photo-${i}.jpg`);
+        if (!photoRes.ok) continue;
+        const photoBlob = await photoRes.blob();
+        const compressed = await compressImage(new File([photoBlob], `photo-${i}.jpg`, { type: photoBlob.type || 'image/jpeg' }));
+        const photoRef = ref(storage, `recent-event/photo-${i}.jpg`);
+        const photoSnapshot = await uploadBytes(photoRef, compressed);
+        photoUrls.push(await getDownloadURL(photoSnapshot.ref));
+      }
+
+      setRecentEventVideo(videoUrl);
+      setRecentEventPhotos(photoUrls);
+
+      const docRef = doc(db, 'content', 'home');
+      await updateDoc(docRef, { recentEventVideo: videoUrl, recentEventPhotos: photoUrls });
+      alert(`Imported video and ${photoUrls.length} photos to Firebase.`);
+    } catch (err) {
+      console.error('Error importing bundled recent event media:', err);
+      alert('Import failed. Ensure Storage rules allow recent-event uploads, then try again.');
+    } finally {
+      setImportingRecentEvent(false);
+    }
   };
 
   const handleMoveEventImage = (eventId: string, imageIndex: number, direction: number) => {
@@ -504,6 +624,63 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="space-y-4 pt-6 mt-6 border-t border-stone-100">
+                  <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Moments from Our Events</h3>
+                  <p className="text-xs text-stone-500">Highlight video and photo grid on the homepage. Upload here, then click Publish.</p>
+                  <button
+                    type="button"
+                    onClick={handleImportBundledRecentEvent}
+                    disabled={importingRecentEvent || uploading}
+                    className="w-full flex items-center justify-center gap-2 p-2 text-sm font-medium bg-stone-800 text-white rounded-lg hover:bg-stone-900 disabled:opacity-50 transition-colors"
+                  >
+                    {importingRecentEvent ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                    Import bundled files to Firebase
+                  </button>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-stone-700">Event highlight video</label>
+                    <div className="aspect-[3/4] max-h-48 w-full bg-stone-100 rounded-lg relative overflow-hidden border">
+                      {recentEventVideo ? (
+                        <video src={recentEventVideo} autoPlay loop muted playsInline className="object-cover w-full h-full" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-stone-400 text-sm">No video</div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <label className="cursor-pointer flex-1 flex items-center justify-center p-2 bg-stone-50 border border-dashed border-stone-300 text-stone-600 hover:bg-stone-100 rounded transition-colors text-sm font-medium">
+                        <UploadCloud className="h-4 w-4 mr-2" /> {recentEventVideo ? 'Replace video' : 'Upload video'}
+                        <input type="file" accept="video/*" className="hidden" onChange={handleRecentEventVideoUpload} disabled={uploading} />
+                      </label>
+                      {recentEventVideo && (
+                        <button type="button" onClick={handleClearRecentEventVideo} className="px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded hover:bg-red-100">Remove</button>
+                      )}
+                    </div>
+                  </div>
+                  <label className="cursor-pointer flex items-center justify-center p-2 bg-white border border-dashed border-stone-300 text-stone-600 hover:bg-stone-50 rounded transition-colors text-sm font-medium">
+                    <ImagePlus className="h-4 w-4 mr-2" /> Upload photos
+                    <input type="file" accept="image/*" className="hidden" onChange={handleRecentEventPhotoUpload} disabled={uploading} />
+                  </label>
+                  {recentEventPhotos.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {recentEventPhotos.map((img, imgIdx) => (
+                        <div key={img} className="relative aspect-square bg-stone-200 rounded overflow-hidden group border border-stone-200">
+                          <Image src={img} alt="Recent event" fill className="object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                            <button type="button" onClick={() => handleMoveRecentEventPhoto(imgIdx, -1)} disabled={imgIdx === 0} className="p-1.5 bg-white/80 text-stone-800 rounded-full hover:bg-white transition-colors disabled:opacity-30" title="Move left">
+                              <ArrowLeft className="h-3 w-3" />
+                            </button>
+                            <button type="button" onClick={() => handleDeleteRecentEventPhoto(img)} className="p-1.5 bg-red-600/80 text-white rounded-full hover:bg-red-600 transition-colors" title="Delete">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                            <button type="button" onClick={() => handleMoveRecentEventPhoto(imgIdx, 1)} disabled={imgIdx === recentEventPhotos.length - 1} className="p-1.5 bg-white/80 text-stone-800 rounded-full hover:bg-white transition-colors disabled:opacity-30" title="Move right">
+                              <ArrowRight className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4 pt-6 mt-6 border-t border-stone-100">
